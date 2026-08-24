@@ -3,6 +3,12 @@ DRAFT — outline.md: high-level arc and chapter slots
 Overall structure
 - Acts: three-act structure. Act I sets stakes and tone; Act II escalates conflict and deepens character; Act III resolves the central arc.
 
+Premise
+- Setting: Amity Cove, a small fishing town whose waterfront is being bought up for redevelopment.
+- Protagonist: Mara Voss, a former harbor diver now working night dispatch for the harbor patrol under her mentor, Dez Okafor.
+- Central conflict: fishing boats have started vanishing near the cove at low tide with no wreckage and no distress calls. Mara is pulled into investigating the pattern, which surfaces both a cover-up tied to Thomas Ridge's waterfront development (which employs her estranged sister, Lena Voss) and the unresolved grief and rift inside her own family.
+- Goal: find out what is actually happening to the boats before Ridge's project erases the evidence, and before it costs someone she knows.
+
 Act summaries
 - Act I (chapters 1-6): Setup — introduce protagonist, central world, inciting incident, and the primary goal.
 - Act II (chapters 7-18): Confrontation — obstacles, reversals, character growth, midpoint complication.
