@@ -1,0 +1,20 @@
+# .d8a — who governs this repository, and how to run it.
+#
+# Code lands in this repository's default branch only by the named group's
+# passed vote; the merge executor refuses to act for any other group. Delete
+# this file to withdraw consent. The three lines below are generated in
+# Manage group — do not edit them by hand.
+version: 1
+group: d8a:batch-the-novel
+proof: XIoDkWQCBUk9BNM5kO2-ftE_oLwFKH54jlPeVgqAE2Fy28DgLcck2JEOaC98JetI_oQAuN3bcTQR4bC8juAZ3EBstaHBM-Vu-fe41DzoWIvHagJ1PvPjK_NnYIMtpvd0hH_P4_ObR6csxSrEHABK_SDuhKCJmvsZin1W11iP70xkOA7Sm5Zov5HnnrRBBkQnRCJFU1R-8-W7TzAKJP7dexRm5Zs2OvjNys58d_uUW1dvW2u4b2-wx0LJHv48M2LRxJ4MDxstn7tvAUc9lDXZGFuOqjhDjsSVPKaw6gzck2tXEt2lk9LkQXYd4-ssNz_jcsVXUjmsZAhiBJmcp2mewA
+
+# Where this repository runs live, if anywhere — the footer shows it as a globe.
+# url: https://example.com
+
+# How to run this repository. Yours to edit — the governance lines above are
+# not. One terminal per entry, launched together by the ▶ button in VS Code
+# (the VSD8A extension) and by nothing else.
+run:
+  {
+    "// nothing to run": "this repository is prose - chapters/, outline.md, STYLE.md. Read it, do not launch it."
+  }
