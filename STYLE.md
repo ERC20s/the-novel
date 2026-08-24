@@ -14,25 +14,36 @@ POV and Narrative Distance
 Dialogue and Attribution
 - Keep dialogue beats short and grounded in action or interior thought. Use simple attribution and actions to anchor who speaks.
 
-Cast (DRAFT template)
-- Character: [Name]
-  - Role: [e.g., Protagonist, Antagonist, Sidekick]
-  - Age: [approximate]
-  - Salient traits: [brief list: physical, behavioral, voice]
-  - Relationship notes: [how they relate to one or two other cast members]
-
-Example entries (placeholders for the repository)
-- Character: Protagonist Name
+Cast
+- Character: Mara Voss
   - Role: Protagonist
   - Age: mid-30s
-  - Salient traits: stubborn, practical, wry sense of humor
-  - Relationship notes: estranged from Sibling; works with Mentor
+  - Salient traits: stubborn, practical, wry sense of humor, ex-harbor diver who now works the night dispatch radio
+  - Relationship notes: estranged from her sister Lena Voss since their father's death; reports to and trusts Dez Okafor
 
-- Character: Supporting Name
-  - Role: Friend / foil
+- Character: Dez Okafor
+  - Role: Mentor
+  - Age: early 60s
+  - Salient traits: gruff, exacting, decades running the harbor patrol, quietly protective of Mara
+  - Relationship notes: Mara's supervisor and closest confidant; knows more about the missing boats than he admits
+
+- Character: Lena Voss
+  - Role: Sibling / secondary conflict
   - Age: late 20s
-  - Salient traits: impulsive, empathetic
-  - Relationship notes: childhood friend of Protagonist
+  - Salient traits: impulsive, resentful, works for the developer buying up the waterfront
+  - Relationship notes: Mara's younger sister; their falling-out drives a personal subplot alongside the main mystery
+
+- Character: Colm Reyes
+  - Role: Friend / foil
+  - Age: mid-30s
+  - Salient traits: impulsive, empathetic, runs the bait shop, first to notice the tide pattern is wrong
+  - Relationship notes: childhood friend of Mara; pulls her back toward the town when she wants to withdraw
+
+- Character: Thomas Ridge
+  - Role: Antagonist
+  - Age: 50s
+  - Salient traits: polished, patient, treats the town as an asset to be developed
+  - Relationship notes: employs Lena Voss; his waterfront project is the surface reason boats keep disappearing near Amity Cove
 
 Notes
 - This file is a DRAFT. Keep entries short and factual so continuity is easy to check. Update cast entries in-place rather than redefining characters in chapter prose.
