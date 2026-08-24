@@ -21,18 +21,18 @@ Cast (DRAFT template)
   - Salient traits: [brief list: physical, behavioral, voice]
   - Relationship notes: [how they relate to one or two other cast members]
 
-Example entries (placeholders for the repository)
-- Character: Protagonist Name
+Cast (established in Chapter 01)
+- Character: Mara Voss
   - Role: Protagonist
-  - Age: mid-30s
-  - Salient traits: stubborn, practical, wry sense of humor
-  - Relationship notes: estranged from Sibling; works with Mentor
+  - Age: 34
+  - Salient traits: dark hair with a gray streak at one temple, tall; methodical, careful hand in the town tide ledger, patient with numbers that don't add up
+  - Relationship notes: Averlin's tide clerk, a job inherited from her grandmother; closest to Theo Kade, a childhood friend she once loved and has since settled into an easier, careful closeness with
 
-- Character: Supporting Name
+- Character: Theo Kade
   - Role: Friend / foil
-  - Age: late 20s
-  - Salient traits: impulsive, empathetic
-  - Relationship notes: childhood friend of Protagonist
+  - Age: mid-30s
+  - Salient traits: works at his uncle's boatyard, smells of diesel and resin; narrates his own nervousness out loud, uses an engine-diagnosing squint on problems that aren't engines
+  - Relationship notes: childhood friend of Mara Voss since age nine; briefly married and since divorced, unrelated to Mara
 
 Notes
 - This file is a DRAFT. Keep entries short and factual so continuity is easy to check. Update cast entries in-place rather than redefining characters in chapter prose.

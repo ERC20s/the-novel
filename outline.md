@@ -18,7 +18,7 @@ Major beats (tentative)
 - Denouement
 
 Chapter mapping (placeholders)
-- Chapter 01: Opening image / introduce protagonist and world
+- Chapter 01 (delivered, chapters/01-the-low-tide.md): Opening image delivered — tide clerk Mara Voss and her friend Theo Kade discover Averlin's harbor has receded far past any recorded tide, and the flats show signs the water left slowly, not from a storm; sets up the inciting incident for Chapter 02.
 - Chapter 02: Inciting incident that propels the plot
 - Chapter 03: Early attempt / setback
 - Chapter 04: New information complicates goals
