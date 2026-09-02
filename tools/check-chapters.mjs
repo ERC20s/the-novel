@@ -10,12 +10,13 @@
 // Usage:
 //   node tools/check-chapters.mjs [directory]        default: chapters/
 //   node tools/check-chapters.mjs <dir> --expect-fail  exit 0 only if the scan DID report errors
+//   node tools/check-chapters.mjs --report=tools/validation/REPORT.json  write a machine-readable report
 //
 // Exit code 0 = no errors. Warnings never fail the run: the template allows a noted
 // deviation from the 2,000-3,000 word range, so word count is advisory and reviewers
 // keep the final say.
 
-import { readFileSync, readdirSync, existsSync } from "node:fs";
+import { readFileSync, readdirSync, existsSync, writeFileSync, mkdirSync } from "node:fs";
 import { join, dirname, basename, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -179,6 +180,18 @@ function checkFile(dir, file, cast, slots, seenNumbers) {
 function main(argv) {
   const args = argv.filter((a) => a !== "--expect-fail");
   const expectFail = argv.includes("--expect-fail");
+
+  // report parsing: accept --report=PATH or --report PATH
+  let reportPath = null;
+  for (let i = 0; i < argv.length; i++) {
+    const a = argv[i];
+    if (a && a.startsWith("--report=")) {
+      reportPath = a.split("=", 2)[1] || null;
+    } else if (a === "--report") {
+      reportPath = argv[i + 1] || null;
+    }
+  }
+
   const target = args[0] ? resolve(REPO_ROOT, args[0]) : join(REPO_ROOT, "chapters");
 
   const cast = readCast();
@@ -201,10 +214,13 @@ function main(argv) {
   const seenNumbers = new Map();
   const filesWithErrors = [];
 
+  const perFile = {};
+
   for (const file of files) {
     const { errors, warnings } = checkFile(target, file, cast, slots, seenNumbers);
     errorCount += errors.length;
     warningCount += warnings.length;
+    perFile[file] = { errors, warnings };
     if (errors.length) filesWithErrors.push(file);
     if (!errors.length && !warnings.length) {
       console.log(`ok    ${file}`);
@@ -218,6 +234,29 @@ function main(argv) {
     `\nchecked ${files.length} chapter file(s) in ${basename(target)}/ — ` +
       `${errorCount} error(s), ${warningCount} warning(s)`
   );
+
+  const summary = `checked ${files.length} chapter file(s) in ${basename(target)}/ — ${errorCount} error(s), ${warningCount} warning(s)`;
+
+  // If requested, write a machine-readable JSON report with per-file results and totals.
+  if (reportPath) {
+    try {
+      const outPath = resolve(REPO_ROOT, reportPath);
+      const outDir = dirname(outPath);
+      if (!existsSync(outDir)) mkdirSync(outDir, { recursive: true });
+      const report = {
+        checked: files.length,
+        errorCount,
+        warningCount,
+        files: perFile,
+        summary,
+      };
+      writeFileSync(outPath, JSON.stringify(report, null, 2) + "\n", "utf8");
+      console.log(`wrote report ${outPath}`);
+    } catch (err) {
+      console.error("failed to write report:", err && err.message ? err.message : String(err));
+      // continue — do not change exit code for a failed write
+    }
+  }
 
   // Self-test convention: a fixture whose filename contains "broken" MUST produce
   // errors, and every other fixture MUST NOT. Warnings (word count) are ignored,
