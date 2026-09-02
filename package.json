@@ -1,0 +1,13 @@
+{
+  "name": "the-novel",
+  "version": "0.0.0",
+  "private": true,
+  "description": "A novel written chapter by chapter. This package exists only to run the repository's own checks — there is no application here.",
+  "scripts": {
+    "check": "node tools/check-chapters.mjs",
+    "test": "node tools/check-chapters.mjs tools/fixtures --expect-fail"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
