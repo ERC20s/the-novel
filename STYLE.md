@@ -14,6 +14,36 @@ POV and Narrative Distance
 Dialogue and Attribution
 - Keep dialogue beats short and grounded in action or interior thought. Use simple attribution and actions to anchor who speaks.
 
+Voice touchstone
+- What this is: a worked example of the rules above, written to be quoted in review. It is an EXEMPLAR, NOT NOVEL CANON — no chapter is bound by the events, wording or timeline in it, and it does not reserve or preempt any chapter slot (Chapter 01 remains unwritten). Amend it by ordinary proposal like any other entry in this file.
+- How to use it: when a review says a draft does or does not adhere to STYLE.md, quote the touchstone line and the draft line side by side rather than arguing taste.
+
+  The radio had been quiet for forty minutes, which was forty minutes longer
+  than Mara liked. She logged it anyway — 02:14, nothing — because Dez read the
+  log and Dez noticed gaps. Past the window the cove had gone flat and low, the
+  tide pulled back far enough to show the ribs of the old breakwater, black and
+  wet under the sodium lights.
+
+  She keyed the mic. "Harbor patrol to Kestrel. Kestrel, you copy."
+
+  Static. Then more static, patient as breathing.
+
+  She had dived that water for nine years and she knew what it sounded like
+  when a boat was where it said it was. This was not that. She checked the
+  plot, checked it again, and left her hand on the mic without keying it, the
+  way she used to hold a line before she went down.
+
+  "Kestrel," she said. "Say anything."
+
+  The clock turned over to 02:15. She wrote that down too.
+
+- Do: stay in past tense and in close third limited on one focal character — every fact on the page is something that character could notice.
+- Do: let concrete, working detail carry the scene (the log, the plot, the breakwater) instead of adjective stacks.
+- Do: anchor speech with a short action or interior beat, and keep attribution plain ("she said").
+- Don't: step outside the focal character to explain the town, the history or another character's thoughts — that is the omniscient commentary this file rules out.
+- Don't: reach for archaism or ornate metaphor; the register is contemporary and economical.
+- Don't: copy this passage, its phrasing or its beats into a chapter. Match the distance and the density, not the sentences.
+
 Cast
 - Character: Mara Voss
   - Role: Protagonist
