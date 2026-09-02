@@ -1,6 +1,6 @@
 ---
 name: Chapter review
-about: File a focused, structured review for a chapter (post-PR or standalone).
+about: Review an existing or proposed chapter (post-PR or standalone). Not for nominating a chapter for revision — use the Cycle nomination template for CYCLE.md Step 1.
 title: "Chapter review: chapters/NN-title.md"
 labels: review
 ---
@@ -30,6 +30,7 @@ Recommended labels (apply as appropriate):
 - copyedit — grammar, spelling, phrasing
 
 Notes for reviewers:
+- To nominate a chapter for revision this cycle, do not use this template: open a Cycle nomination Issue instead (.github/ISSUE_TEMPLATE/cycle-nomination.md, CYCLE.md Step 1). A review filed here may be linked from a nomination as evidence.
 - Keep reviews short and specific. Use the Required fixes area for blockers and Suggestions for optional polish.
 - If the issue is being used as a checklist for a PR, link the PR and note whether the fixes were pushed to the branch.
 
