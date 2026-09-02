@@ -117,6 +117,22 @@ function checkFile(dir, file, cast, slots, seenNumbers) {
   const fileNumber = nameMatch ? Number(nameMatch[1]) : null;
   const fileSlug = nameMatch ? nameMatch[2] : null;
 
+  // 1a. Filename header, if present, must match either the bare basename (NN-title.md)
+  // or the repo-relative path chapters/NN-title.md. Be permissive about a leading
+  // "./" or leading slash and about Windows backslashes.
+  if (fields.Filename && fields.Filename.trim() !== "") {
+    let raw = fields.Filename.trim();
+    // normalize common prefixes and separators
+    raw = raw.replace(/^\.\/+/, "").replace(/^\/+/, "").replace(/\\/g, "/");
+    const acceptA = file; // e.g. 01-the-low-tide.md
+    const acceptB = `chapters/${file}`; // e.g. chapters/01-the-low-tide.md
+    if (raw !== acceptA && raw !== acceptB) {
+      errors.push(
+        `Filename header "${fields.Filename}" does not match the file; expected either "${acceptA}" or "${acceptB}" (repo-relative path or basename)"
+      );
+    }
+  }
+
   // 2. required header fields
   for (const key of REQUIRED_FIELDS) {
     if (!(key in fields) || fields[key] === "") errors.push(`missing header field "${key}:"`);
@@ -275,4 +291,3 @@ function main(argv) {
   return errorCount > 0 ? 1 : 0;
 }
 
-process.exit(main(process.argv.slice(2)));
