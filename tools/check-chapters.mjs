@@ -117,6 +117,14 @@ function checkFile(dir, file, cast, slots, seenNumbers) {
   const fileNumber = nameMatch ? Number(nameMatch[1]) : null;
   const fileSlug = nameMatch ? nameMatch[2] : null;
 
+  // 1.b Filename header must, if present, match the path exactly
+  if (fields.Filename) {
+    const expected = `chapters/${file}`;
+    if (fields.Filename !== expected) {
+      errors.push(`Filename header must be "${expected}" not "${fields.Filename}"`);
+    }
+  }
+
   // 2. required header fields
   for (const key of REQUIRED_FIELDS) {
     if (!(key in fields) || fields[key] === "") errors.push(`missing header field "${key}:"`);
@@ -275,4 +283,3 @@ function main(argv) {
   return errorCount > 0 ? 1 : 0;
 }
 
-process.exit(main(process.argv.slice(2)));
