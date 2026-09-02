@@ -11,6 +11,7 @@ Chapter details
 - ContinuityNotes: (how this fits outline.md, and any deviations)
 
 Checklist
+- [ ] npm run check passes
 - [ ] File named chapters/NN-title.md
 - [ ] 2,000-3,000 words (or deviation noted above)
 - [ ] Matches STYLE.md (voice, tense, POV) or notes divergence

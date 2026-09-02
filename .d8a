@@ -129,5 +129,6 @@ payments:
 # (the VSD8A extension) and by nothing else.
 run:
   {
-    "// nothing to run": "this repository is prose - chapters/, outline.md, STYLE.md. Read it, do not launch it."
+    "// nothing to run": "this repository is prose - chapters/, outline.md, STYLE.md. Read it, do not launch it.",
+    "check": "npm run check"
   }
