@@ -275,4 +275,8 @@ function main(argv) {
   return errorCount > 0 ? 1 : 0;
 }
 
+// Restore the CLI behaviour expected by other tooling: exit the process
+// with the numeric code returned by main(). This line was accidentally removed
+// in a previous PR; restoring it keeps npm scripts and CI/sh shells seeing
+// the checker's intended exit status.
 process.exit(main(process.argv.slice(2)));
