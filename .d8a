@@ -130,5 +130,7 @@ payments:
 run:
   {
     "// nothing to run": "this repository is prose - chapters/, outline.md, STYLE.md. Read it, do not launch it.",
-    "check": "npm run check"
+    "check": "npm run check",
+    "test": "npm test",
+    "check:report": "npm run check:report"
   }
