@@ -1,13 +1,30 @@
 #!/usr/bin/env node
 // tools/new-chapter.mjs — create a new chapter stub consistent with the project's template
+//
+// Usage:
+//   node tools/new-chapter.mjs NN "Chapter Title" [--focal="Name"] [--dir=PATH]
+//
+// The repository root is resolved the same way every other tool in tools/ does it:
+//   resolve(dirname(fileURLToPath(import.meta.url)), "..")
+// A raw `new URL('.', import.meta.url).pathname` is percent-encoded (a checkout under
+// "My Repo" arrives as ".../My%20Repo/...") and on Windows it arrives as "/C:/Users/...",
+// so path.resolve produced a directory that does not exist and the write failed.
+//
+// --dir=PATH writes the stub somewhere other than chapters/ (resolved against the
+// repository root; an absolute path is used as given) and creates the directory when
+// it is missing. The Filename header is always written bare ("NN-title.md"), which
+// tools/check-chapters.mjs accepts ("written either bare ... or under chapters/") and
+// which stays correct whatever --dir is.
+//
+// Exit codes: 0 wrote the stub, 2 bad arguments, 3 the file already exists
+// (never overwritten), 4 the write itself failed.
 
-import { writeFileSync, existsSync, readFileSync } from 'node:fs';
-import { join, resolve } from 'node:path';
+import { writeFileSync, existsSync, readFileSync, mkdirSync } from 'node:fs';
+import { join, resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const REPO_ROOT = resolve(new URL('.', import.meta.url).pathname, '..');
-const CHAPTERS_DIR = join(REPO_ROOT, 'chapters');
-const OUT_TEMPLATE = join(CHAPTERS_DIR, '00-template.md');
+const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+const DEFAULT_DIR = 'chapters';
 
 function slug(text) {
   return String(text || '')
@@ -57,19 +74,32 @@ function readCast() {
 }
 
 function usage() {
-  console.error('usage: node tools/new-chapter.mjs NN "Chapter Title" [--focal="Name"]');
+  console.error('usage: node tools/new-chapter.mjs NN "Chapter Title" [--focal="Name"] [--dir=PATH]');
 }
 
+// One pass over the command line: flags never end up in the positional list.
 function parseArgs(argv) {
-  const args = { focal: null };
+  const args = { focal: null, dir: null, dirAsked: false };
   const rest = [];
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a.startsWith('--focal=')) {
-      args.focal = a.split('=', 2)[1] || '';
+      args.focal = a.slice('--focal='.length);
     } else if (a === '--focal') {
-      args.focal = argv[i + 1] || '';
-      i++;
+      args.focal = argv[i + 1] !== undefined && !argv[i + 1].startsWith('--') ? argv[i + 1] : '';
+      if (argv[i + 1] !== undefined && !argv[i + 1].startsWith('--')) i++;
+    } else if (a.startsWith('--dir=')) {
+      args.dirAsked = true;
+      args.dir = a.slice('--dir='.length) || null;
+    } else if (a === '--dir') {
+      args.dirAsked = true;
+      const next = argv[i + 1];
+      if (next !== undefined && !next.startsWith('--')) {
+        args.dir = next;
+        i++; // the path belongs to --dir, never to the title
+      } else {
+        args.dir = null;
+      }
     } else {
       rest.push(a);
     }
@@ -81,11 +111,15 @@ function parseArgs(argv) {
 
 function main() {
   const argv = process.argv.slice(2);
-  if (argv.length < 2) {
+  const { nn, title, focal, dir, dirAsked } = parseArgs(argv);
+  if (nn === undefined || title === undefined) {
     usage();
     process.exit(2);
   }
-  const { nn, title, focal } = parseArgs(argv);
+  if (dirAsked && !dir) {
+    console.error('new-chapter: --dir needs a directory path, e.g. --dir=chapters');
+    process.exit(2);
+  }
   if (!/^[0-9]{2}$/.test(nn)) {
     console.error('chapter number must be two digits (e.g. 03)');
     process.exit(2);
@@ -101,8 +135,10 @@ function main() {
     console.error('could not create a slug from the title');
     process.exit(2);
   }
+
+  const outDir = resolve(REPO_ROOT, dir || DEFAULT_DIR);
   const filename = `${nn}-${s}.md`;
-  const path = join(CHAPTERS_DIR, filename);
+  const path = join(outDir, filename);
   if (existsSync(path)) {
     console.error(`refusing to overwrite existing file: ${path}`);
     process.exit(3);
@@ -121,7 +157,7 @@ function main() {
   }
 
   const headerLines = [];
-  headerLines.push(`Filename: chapters/${filename}`);
+  headerLines.push(`Filename: ${filename}`);
   headerLines.push(`Title: ${titleStr}`);
   headerLines.push(`ChapterNumber: ${pad2(num)}`);
   headerLines.push(`TargetWords: 2000-3000`);
@@ -132,10 +168,15 @@ function main() {
   headerLines.push('');
 
   try {
+    if (!existsSync(outDir)) mkdirSync(outDir, { recursive: true });
     writeFileSync(path, headerLines.join('\n'), { flag: 'wx' });
     console.log(`wrote ${path}`);
     process.exit(0);
   } catch (err) {
+    if (err && err.code === 'EEXIST') {
+      console.error(`refusing to overwrite existing file: ${path}`);
+      process.exit(3);
+    }
     console.error('failed to write file:', err && err.message ? err.message : String(err));
     process.exit(4);
   }
