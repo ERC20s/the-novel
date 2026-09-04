@@ -37,6 +37,7 @@ Checklist for contributors
 - Filename in the header matches the file it is saved as.
 - Chapter uses the STYLE.md defaults (past tense, close third-person limited unless marked).
 - Keep target words between 2,000 and 3,000 unless the group decides otherwise; note deviations in ContinuityNotes.
+- The file actually contains a chapter. A body of fewer than 50 words of prose (HTML comments, including the "Start writing the chapter below this line" marker the generator writes, do not count) is a check FAILURE, not a warning: the header being perfect is not the same as the chapter being written. Anything above that floor is advisory and reviewers keep the final say.
 - Add short ContinuityNotes describing how the chapter advances the mapped beat(s) from outline.md.
 
 Notes
