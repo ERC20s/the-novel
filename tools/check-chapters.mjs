@@ -13,7 +13,12 @@
 // Usage:
 //   node tools/check-chapters.mjs [directory]        default: chapters/
 //   node tools/check-chapters.mjs <dir> --expect-fail  exit 0 only if the scan DID report errors
-//   node tools/check-chapters.mjs --report=tools/validation/REPORT.json  write a machine-readable report
+//   node tools/check-chapters.mjs chapters --report=tools/validation/REPORT.json  write a report
+//   node tools/check-chapters.mjs chapters --report tools/validation/REPORT.json  the same, spaced
+//
+// Flags and the positional directory are parsed in a single pass (parseArgs), so a
+// --report path is never mistaken for the directory to scan. --report with no usable
+// path exits 2.
 //
 // Exit code 0 = no errors. Warnings never fail the run: the template allows a noted
 // deviation from the 2,000-3,000 word range, so word count is advisory and reviewers
@@ -205,22 +210,54 @@ function checkFile(dir, file, cast, slots, seenNumbers) {
 
 // ---------------------------------------------------------------- run
 
-function main(argv) {
-  const args = argv.filter((a) => a !== "--expect-fail");
-  const expectFail = argv.includes("--expect-fail");
-
-  // report parsing: accept --report=PATH or --report PATH
+// One pass over the command line, so the flags and the positional directory can
+// never disagree. Accepted: --expect-fail, --report=PATH, --report PATH (the
+// next argument is consumed as the path), and one positional directory.
+// Not exported on purpose: this module exits the process when it loads (see the
+// bottom of the file), so the CLI test in tools/test-cli.mjs spawns it instead.
+function parseArgs(argv) {
+  let expectFail = false;
   let reportPath = null;
+  let reportAsked = false;
+  const positional = [];
+
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
-    if (a && a.startsWith("--report=")) {
-      reportPath = a.split("=", 2)[1] || null;
-    } else if (a === "--report") {
-      reportPath = argv[i + 1] || null;
+    if (a === "--expect-fail") {
+      expectFail = true;
+      continue;
     }
+    if (a === "--report") {
+      reportAsked = true;
+      const next = argv[i + 1];
+      if (next !== undefined && !next.startsWith("--")) {
+        reportPath = next;
+        i++; // the path belongs to --report, never to the target
+      } else {
+        reportPath = null;
+      }
+      continue;
+    }
+    if (a.startsWith("--report=")) {
+      reportAsked = true;
+      reportPath = a.slice("--report=".length) || null;
+      continue;
+    }
+    positional.push(a);
   }
 
-  const target = args[0] ? resolve(REPO_ROOT, args[0]) : join(REPO_ROOT, "chapters");
+  return { expectFail, reportPath, reportAsked, positional };
+}
+
+function main(argv) {
+  const { expectFail, reportPath, reportAsked, positional } = parseArgs(argv);
+
+  if (reportAsked && !reportPath) {
+    console.error("check-chapters: --report needs a file path, e.g. --report=tools/validation/REPORT.json");
+    return 2;
+  }
+
+  const target = positional[0] ? resolve(REPO_ROOT, positional[0]) : join(REPO_ROOT, "chapters");
 
   const cast = readCast();
   const slots = readSlots();

@@ -5,8 +5,9 @@
   "description": "A novel written chapter by chapter. This package exists only to run the repository's own checks \u0014 there is no application here.",
   "scripts": {
     "check": "node tools/check-chapters.mjs",
-    "test": "node tools/check-chapters.mjs tools/fixtures --expect-fail",
-    "check:report": "node tools/check-chapters.mjs --report=tools/validation/REPORT.json",
+    "test": "node tools/check-chapters.mjs tools/fixtures --expect-fail && node tools/test-cli.mjs",
+    "test:cli": "node tools/test-cli.mjs",
+    "check:report": "node tools/check-chapters.mjs chapters --report=tools/validation/REPORT.json",
     "toc": "node tools/build-toc.mjs",
     "new": "node tools/new-chapter.mjs"
   },
