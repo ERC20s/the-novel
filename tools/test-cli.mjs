@@ -16,6 +16,10 @@
 // lists were widened, "npm run toc" followed by "npm run check" failed on a clean
 // repository and the index listed itself.
 //
+// And it now covers tools/new-chapter.mjs, which used to resolve the repository root
+// from a raw URL pathname (percent-encoded, and "/C:/..." on Windows). Every generator
+// case writes into a temp directory via --dir, so chapters/ is never touched.
+//
 import { spawnSync } from "node:child_process";
 import { mkdtempSync, readFileSync, writeFileSync, existsSync, rmSync } from "node:fs";
 import { join, dirname, resolve } from "node:path";
@@ -25,6 +29,7 @@ import { fileURLToPath } from "node:url";
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const CHECKER = join(REPO_ROOT, "tools", "check-chapters.mjs");
 const TOC_BUILDER = join(REPO_ROOT, "tools", "build-toc.mjs");
+const GENERATOR = join(REPO_ROOT, "tools", "new-chapter.mjs");
 const INDEX_MD = join(REPO_ROOT, "chapters", "INDEX.md");
 const TOC_JSON = join(REPO_ROOT, "tools", "validation", "toc.json");
 
@@ -99,8 +104,24 @@ function checkReportShape(name, report) {
 }
 
 const workDir = mkdtempSync(join(tmpdir(), "check-chapters-cli-"));
+// The generator writes here, never into chapters/. "drafts" deliberately does not
+// exist yet: --dir has to create it.
+const genRoot = mkdtempSync(join(tmpdir(), "new-chapter-cli-"));
+const genDir = join(genRoot, "drafts");
 let indexSnap = null;
 let tocSnap = null;
+
+function runGenerator(args) {
+  return runScript(GENERATOR, args);
+}
+
+// Chapter 07 is inside the "Chapters 07-18" slot in outline.md and "Mara Voss" is a
+// "- Character:" line in STYLE.md, so the only errors the checker can report on a
+// fresh stub are the two bracket placeholders the writer is meant to fill in.
+const GEN_NN = "07";
+const GEN_TITLE = "The Long Dark";
+const GEN_FILE = "07-the-long-dark.md";
+const GEN_FOCAL = "Mara Voss";
 
 try {
   // 1. positional directory + --report=PATH: the flag must not become the target.
@@ -196,6 +217,78 @@ try {
       else pass(name);
     }
   }
+  // 8. the generator writes a stub — this is the case the broken REPO_ROOT failed.
+  //    The temp path contains no percent-encoding tricks of its own, but the tool now
+  //    resolves its own location with fileURLToPath, which is what a spaced or Windows
+  //    checkout needs.
+  {
+    const name = "new-chapter writes a stub into --dir and exits 0";
+    const { code, out: log } = runGenerator([GEN_NN, GEN_TITLE, `--dir=${genDir}`]);
+    const written = join(genDir, GEN_FILE);
+    if (code !== 0) fail(name, `exit ${code}\n${log}`);
+    else if (!existsSync(written)) fail(name, `no file at ${written}\n${log}`);
+    else {
+      const text = readFileSync(written, "utf8");
+      if (!/^Filename: 07-the-long-dark\.md$/m.test(text)) {
+        fail(name, `Filename header is not the bare basename:\n${text.split("\n").slice(0, 6).join("\n")}`);
+      } else if (!/^ChapterNumber: 07$/m.test(text) || !/^Title: The Long Dark$/m.test(text)) {
+        fail(name, `header fields are wrong:\n${text.split("\n").slice(0, 6).join("\n")}`);
+      } else {
+        pass(name);
+      }
+    }
+  }
+
+  // 9. running it twice must never clobber a chapter someone is writing.
+  {
+    const name = "new-chapter refuses to overwrite and exits 3";
+    const written = join(genDir, GEN_FILE);
+    const before = existsSync(written) ? readFileSync(written, "utf8") : null;
+    const { code, out: log } = runGenerator([GEN_NN, GEN_TITLE, `--dir=${genDir}`]);
+    if (code !== 3) fail(name, `expected exit 3, got ${code}\n${log}`);
+    else if (before === null) fail(name, "case 8 wrote nothing, so this case proves nothing");
+    else if (readFileSync(written, "utf8") !== before) fail(name, "the existing file was modified");
+    else pass(name);
+  }
+
+  // 10. argument validation: the chapter number is two digits or nothing.
+  {
+    const name = "new-chapter rejects a one-digit chapter number with exit 2";
+    const { code, out: log } = runGenerator(["7", "Seven", `--dir=${genDir}`]);
+    if (code !== 2) fail(name, `expected exit 2, got ${code}\n${log}`);
+    else if (existsSync(join(genDir, "7-seven.md")) || existsSync(join(genDir, "07-seven.md"))) {
+      fail(name, "a file was written despite the bad argument");
+    } else pass(name);
+  }
+
+  // 11. generator and checker must agree: the only complaints about a fresh stub are
+  //     the two placeholders the writer fills in, and filling them makes the run green.
+  {
+    const name = "checker flags only the stub's placeholders, then passes once filled";
+    const written = join(genDir, GEN_FILE);
+    if (!existsSync(written)) {
+      fail(name, "no generated stub to check");
+    } else {
+      const first = run([genDir]);
+      const errors = first.out.split(/\r?\n/).filter((l) => l.startsWith("ERROR "));
+      const placeholders = errors.filter((l) => /bracket placeholder/.test(l));
+      if (first.code !== 1) {
+        fail(name, `expected exit 1 on the untouched stub, got ${first.code}\n${first.out}`);
+      } else if (errors.length !== 2 || placeholders.length !== 2) {
+        fail(name, `expected exactly the two placeholder errors, got:\n${errors.join("\n") || "(none)"}`);
+      } else if (!errors.some((l) => /ContinuityNotes/.test(l)) || !errors.some((l) => /FocalCharacter/.test(l))) {
+        fail(name, `the two errors are not ContinuityNotes and FocalCharacter:\n${errors.join("\n")}`);
+      } else {
+        const filled = readFileSync(written, "utf8")
+          .replace(/^ContinuityNotes: .*$/m, "ContinuityNotes: follows the Act II development beat")
+          .replace(/^FocalCharacter: .*$/m, `FocalCharacter: ${GEN_FOCAL}`);
+        writeFileSync(written, filled, "utf8");
+        const second = run([genDir]);
+        if (second.code !== 0) fail(name, `filled-in stub still fails the checker:\n${second.out}`);
+        else pass(name);
+      }
+    }
+  }
 } finally {
   // Put the working tree back the way it was found: restore a committed
   // INDEX.md / toc.json byte for byte, delete the ones this test created.
@@ -203,6 +296,11 @@ try {
   restore(tocSnap);
   try {
     rmSync(workDir, { recursive: true, force: true });
+  } catch {
+    /* a leftover temp directory is not a test failure */
+  }
+  try {
+    rmSync(genRoot, { recursive: true, force: true });
   } catch {
     /* a leftover temp directory is not a test failure */
   }
