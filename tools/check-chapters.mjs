@@ -26,6 +26,13 @@
 // Exit code 0 = no errors. Warnings never fail the run: the template allows a noted
 // deviation from the 2,000-3,000 word range, so word count is advisory and reviewers
 // keep the final say.
+//
+// The ONE body rule that does fail the run is the stub floor: a file with fewer than
+// STUB_MIN_WORDS words of prose is not a chapter at all, it is the stub
+// tools/new-chapter.mjs just wrote. HTML comments (the generator's "Start writing the
+// chapter below this line" marker) are stripped before counting, so an untouched stub
+// counts as zero words rather than a dozen. Everything between the floor and the
+// 2,000-3,000 target stays advisory.
 
 import { readFileSync, readdirSync, existsSync, writeFileSync, mkdirSync } from "node:fs";
 import { join, dirname, basename, resolve } from "node:path";
@@ -44,6 +51,10 @@ const REQUIRED_FIELDS = [
 const HEADER_KEYS = [...REQUIRED_FIELDS];
 const MIN_WORDS = 2000;
 const MAX_WORDS = 3000;
+// Below this, the file holds no prose: it is a stub, and a stub is an error rather
+// than a warning. Deliberately far under MIN_WORDS — the group's rule is that a short
+// chapter is a judgement call for reviewers, but an EMPTY one is never mergeable.
+const STUB_MIN_WORDS = 50;
 // Files that live in chapters/ but are not chapters: the template a writer copies,
 // the generated index (tools/build-toc.mjs writes chapters/INDEX.md) and a folder
 // README. None of them can ever satisfy the NN-title.md rule, so scanning them only
@@ -119,8 +130,14 @@ function parseHeader(text) {
   return { fields, body };
 }
 
+// HTML comments are not prose. The generator's marker comment is the whole body of a
+// fresh stub, and counting its words made an empty file look like a dozen-word chapter.
+function stripComments(body) {
+  return String(body).replace(/<!--[\s\S]*?-->/g, " ");
+}
+
 function countWords(body) {
-  const words = body.replace(/[#*_>`]/g, " ").trim().split(/\s+/).filter(Boolean);
+  const words = stripComments(body).replace(/[#*_>`]/g, " ").trim().split(/\s+/).filter(Boolean);
   return words.length;
 }
 
@@ -207,9 +224,17 @@ function checkFile(dir, file, cast, slots, seenNumbers) {
     );
   }
 
-  // 7. word count — advisory, per the template's "note deviations in ContinuityNotes"
+  // 7. word count.
+  //   - under the stub floor: an ERROR. The header can be perfect and the file still
+  //     contain no chapter, which is exactly what tools/new-chapter.mjs leaves behind.
+  //   - otherwise outside 2,000-3,000: advisory, per the template's
+  //     "note deviations in ContinuityNotes".
   const words = countWords(body);
-  if (words < MIN_WORDS || words > MAX_WORDS) {
+  if (words < STUB_MIN_WORDS) {
+    errors.push(
+      `chapter has no prose (${words} words, floor is ${STUB_MIN_WORDS}): this file is still a stub`
+    );
+  } else if (words < MIN_WORDS || words > MAX_WORDS) {
     warnings.push(`${words} words, outside the 2,000-3,000 target — note the deviation in ContinuityNotes`);
   }
 

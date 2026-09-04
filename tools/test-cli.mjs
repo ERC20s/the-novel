@@ -20,6 +20,10 @@
 // from a raw URL pathname (percent-encoded, and "/C:/..." on Windows). Every generator
 // case writes into a temp directory via --dir, so chapters/ is never touched.
 //
+// The last trap it guards is the stub: the checker used to print "ok" for a file with a
+// perfect header and no chapter in it. Cases 11 and 12 hold that line — a generated stub
+// fails, a stub with its placeholders filled in STILL fails, and only real prose passes.
+//
 import { spawnSync } from "node:child_process";
 import { mkdtempSync, readFileSync, writeFileSync, existsSync, rmSync } from "node:fs";
 import { join, dirname, resolve } from "node:path";
@@ -122,6 +126,18 @@ const GEN_NN = "07";
 const GEN_TITLE = "The Long Dark";
 const GEN_FILE = "07-the-long-dark.md";
 const GEN_FOCAL = "Mara Voss";
+
+// Enough prose to clear the checker's stub floor (STUB_MIN_WORDS = 50) and nowhere near
+// the 2,000-word warning line — a warning does not fail the run, an empty body now does.
+// Not canon: this text never leaves the temp directory.
+const PROSE = [
+  "The tide went out at three in the morning and took the harbour lights with it.",
+  "Mara logged the call, checked the board twice, and then went down to the water herself.",
+  "The dock boards were slick and the ropes hung slack where a boat should have been.",
+  "She wrote the time in the book, the way Dez had taught her, and waited for the radio.",
+  "Nothing answered. The cove kept its own counsel, and the cold came up through her boots.",
+  "By four she had walked the whole pier twice and found no wreckage at all.",
+].join(" ");
 
 try {
   // 1. positional directory + --report=PATH: the flag must not become the target.
@@ -261,10 +277,12 @@ try {
     } else pass(name);
   }
 
-  // 11. generator and checker must agree: the only complaints about a fresh stub are
-  //     the two placeholders the writer fills in, and filling them makes the run green.
+  // 11. generator and checker must agree. A fresh stub draws three errors: the two
+  //     bracket placeholders the writer fills in, plus the stub floor, because the whole
+  //     body is the generator's HTML comment and comments are not prose. Filling the two
+  //     placeholders is NOT enough — the file only goes green once real prose is in it.
   {
-    const name = "checker flags only the stub's placeholders, then passes once filled";
+    const name = "checker flags the stub's placeholders and its empty body, then passes once written";
     const written = join(genDir, GEN_FILE);
     if (!existsSync(written)) {
       fail(name, "no generated stub to check");
@@ -272,22 +290,53 @@ try {
       const first = run([genDir]);
       const errors = first.out.split(/\r?\n/).filter((l) => l.startsWith("ERROR "));
       const placeholders = errors.filter((l) => /bracket placeholder/.test(l));
+      const stubs = errors.filter((l) => /still a stub/.test(l));
       if (first.code !== 1) {
         fail(name, `expected exit 1 on the untouched stub, got ${first.code}\n${first.out}`);
-      } else if (errors.length !== 2 || placeholders.length !== 2) {
-        fail(name, `expected exactly the two placeholder errors, got:\n${errors.join("\n") || "(none)"}`);
+      } else if (errors.length !== 3 || placeholders.length !== 2 || stubs.length !== 1) {
+        fail(name, `expected two placeholder errors and one stub error, got:\n${errors.join("\n") || "(none)"}`);
       } else if (!errors.some((l) => /ContinuityNotes/.test(l)) || !errors.some((l) => /FocalCharacter/.test(l))) {
-        fail(name, `the two errors are not ContinuityNotes and FocalCharacter:\n${errors.join("\n")}`);
+        fail(name, `the placeholder errors are not ContinuityNotes and FocalCharacter:\n${errors.join("\n")}`);
+      } else if (!/no prose \(0 words/.test(stubs[0])) {
+        fail(name, `the generator's comment was counted as prose:\n${stubs[0]}`);
       } else {
         const filled = readFileSync(written, "utf8")
           .replace(/^ContinuityNotes: .*$/m, "ContinuityNotes: follows the Act II development beat")
           .replace(/^FocalCharacter: .*$/m, `FocalCharacter: ${GEN_FOCAL}`);
         writeFileSync(written, filled, "utf8");
+
+        // A correct header over an empty body must still fail: this is the whole point
+        // of the floor.
         const second = run([genDir]);
-        if (second.code !== 0) fail(name, `filled-in stub still fails the checker:\n${second.out}`);
-        else pass(name);
+        const stillStub = second.out.split(/\r?\n/).filter((l) => l.startsWith("ERROR "));
+        if (second.code !== 1) {
+          fail(name, `a filled-in header over an empty body must still fail, got exit ${second.code}\n${second.out}`);
+        } else if (stillStub.length !== 1 || !/still a stub/.test(stillStub[0])) {
+          fail(name, `expected only the stub error after filling the header, got:\n${stillStub.join("\n") || "(none)"}`);
+        } else {
+          // Now write prose. STUB_MIN_WORDS is 50 in tools/check-chapters.mjs; this
+          // passage is comfortably over it and under the 2,000 warning line, so the run
+          // must end clean (the word-count warning does not fail anything).
+          writeFileSync(written, `${filled}\n${PROSE}\n`, "utf8");
+          const third = run([genDir]);
+          if (third.code !== 0) fail(name, `a written chapter still fails the checker:\n${third.out}`);
+          else pass(name);
+        }
       }
     }
+  }
+
+  // 12. the fixture pair says the same thing on its own: the empty fixture is reported
+  //     as a stub by name, so npm test's --expect-fail case above cannot pass by accident.
+  {
+    const name = "tools/fixtures/04-broken-stub.md is reported as a stub";
+    const { code, out: log } = run(["tools/fixtures"]);
+    if (code !== 1) fail(name, `expected exit 1 on the fixture folder, got ${code}\n${log}`);
+    else if (!/ERROR 04-broken-stub\.md: chapter has no prose \(0 words/.test(log)) {
+      fail(name, `the empty fixture was not flagged as a stub:\n${log}`);
+    } else if (/ERROR 01-the-low-tide\.md/.test(log)) {
+      fail(name, `the clean fixture was flagged:\n${log}`);
+    } else pass(name);
   }
 } finally {
   // Put the working tree back the way it was found: restore a committed
