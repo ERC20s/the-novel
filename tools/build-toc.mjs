@@ -7,7 +7,12 @@ const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const CHAPTERS_DIR = join(REPO_ROOT, 'chapters');
 const OUT_INDEX = join(REPO_ROOT, 'chapters', 'INDEX.md');
 const OUT_JSON = join(REPO_ROOT, 'tools', 'validation', 'toc.json');
-const SKIP = new Set(['00-template.md']);
+// Not chapters: the template, a folder README, and this script's own output.
+// The index used to list itself, because the generated INDEX.md sits in the very
+// folder that is scanned. Names are compared lowercased, and the output file is
+// skipped by its own basename rather than a hard-coded string, so moving OUT_INDEX
+// can never re-open the hole.
+const SKIP = new Set(['00-template.md', 'readme.md', basename(OUT_INDEX).toLowerCase()]);
 const HEADER_KEYS = ['Filename', 'Title', 'ChapterNumber', 'TargetWords', 'ContinuityNotes', 'FocalCharacter'];
 
 function readIf(path) {
@@ -86,7 +91,9 @@ function main() {
     console.error('chapters/ directory not found');
     process.exit(1);
   }
-  const files = readdirSync(CHAPTERS_DIR).filter((f) => f.toLowerCase().endsWith('.md') && !SKIP.has(f)).sort();
+  const files = readdirSync(CHAPTERS_DIR)
+    .filter((f) => f.toLowerCase().endsWith('.md') && !SKIP.has(f.toLowerCase()))
+    .sort();
   const items = [];
   for (const file of files) {
     const path = join(CHAPTERS_DIR, file);

@@ -11,14 +11,22 @@
 //
 // Exit code 0 = every case passed.
 
+// It also guards the second trap the tools set for each other: build-toc.mjs writes
+// chapters/INDEX.md INTO the folder check-chapters.mjs scans, so before the skip
+// lists were widened, "npm run toc" followed by "npm run check" failed on a clean
+// repository and the index listed itself.
+//
 import { spawnSync } from "node:child_process";
-import { mkdtempSync, readFileSync, existsSync, rmSync } from "node:fs";
+import { mkdtempSync, readFileSync, writeFileSync, existsSync, rmSync } from "node:fs";
 import { join, dirname, resolve } from "node:path";
 import { tmpdir } from "node:os";
 import { fileURLToPath } from "node:url";
 
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const CHECKER = join(REPO_ROOT, "tools", "check-chapters.mjs");
+const TOC_BUILDER = join(REPO_ROOT, "tools", "build-toc.mjs");
+const INDEX_MD = join(REPO_ROOT, "chapters", "INDEX.md");
+const TOC_JSON = join(REPO_ROOT, "tools", "validation", "toc.json");
 
 let failures = 0;
 
@@ -31,12 +39,41 @@ function pass(name) {
   console.log(`ok     ${name}`);
 }
 
-function run(args) {
-  const r = spawnSync(process.execPath, [CHECKER, ...args], {
+function runScript(script, args) {
+  const r = spawnSync(process.execPath, [script, ...args], {
     cwd: REPO_ROOT,
     encoding: "utf8",
   });
   return { code: r.status, out: `${r.stdout || ""}${r.stderr || ""}` };
+}
+
+function run(args) {
+  return runScript(CHECKER, args);
+}
+
+// Remember a working-tree file exactly as it is now, so the TOC cases below can
+// put it back: a committed chapters/INDEX.md must survive this test unchanged,
+// and a file this test created must not be left behind.
+function snapshot(path) {
+  if (!existsSync(path)) return { path, existed: false, content: null };
+  try {
+    return { path, existed: true, content: readFileSync(path, "utf8") };
+  } catch {
+    return { path, existed: true, content: null };
+  }
+}
+
+function restore(snap) {
+  if (!snap) return;
+  try {
+    if (snap.existed) {
+      if (snap.content !== null) writeFileSync(snap.path, snap.content, "utf8");
+    } else {
+      rmSync(snap.path, { force: true });
+    }
+  } catch {
+    /* a leftover generated file is not a test failure */
+  }
 }
 
 function readReport(name, path) {
@@ -62,6 +99,8 @@ function checkReportShape(name, report) {
 }
 
 const workDir = mkdtempSync(join(tmpdir(), "check-chapters-cli-"));
+let indexSnap = null;
+let tocSnap = null;
 
 try {
   // 1. positional directory + --report=PATH: the flag must not become the target.
@@ -109,7 +148,59 @@ try {
     else if (!/self-test passed/.test(log)) fail(name, `self-test line missing:\n${log}`);
     else pass(name);
   }
+
+  // 6. the generated index must never list itself.
+  //    build-toc.mjs writes chapters/INDEX.md, which then sits in the folder it
+  //    scans; tools/validation/toc.json is the machine-readable copy of the same
+  //    rows, so asserting on it also covers the markdown table.
+  {
+    const name = "npm run toc twice never lists INDEX.md as a chapter";
+    indexSnap = snapshot(INDEX_MD);
+    tocSnap = snapshot(TOC_JSON);
+
+    const first = runScript(TOC_BUILDER, []);
+    const second = runScript(TOC_BUILDER, []); // the second run is the one that used to self-list
+    if (first.code !== 0 || second.code !== 0) {
+      fail(name, `build-toc exited ${first.code}/${second.code}\n${first.out}${second.out}`);
+    } else if (!existsSync(TOC_JSON)) {
+      fail(name, `no toc written at ${TOC_JSON}`);
+    } else {
+      let rows = null;
+      try {
+        rows = JSON.parse(readFileSync(TOC_JSON, "utf8"));
+      } catch (err) {
+        fail(name, `toc.json is not valid JSON: ${err && err.message ? err.message : String(err)}`);
+      }
+      if (rows) {
+        if (!Array.isArray(rows)) fail(name, "toc.json is not an array of chapter rows");
+        else if (rows.some((r) => String((r && r.filename) || "").toLowerCase() === "index.md")) {
+          fail(name, "toc.json contains an entry named INDEX.md");
+        } else if (existsSync(INDEX_MD) && /\|\s*INDEX\.md\s*\|/i.test(readFileSync(INDEX_MD, "utf8"))) {
+          fail(name, "chapters/INDEX.md lists itself as a chapter row");
+        } else {
+          pass(name);
+        }
+      }
+    }
+  }
+
+  // 7. and the standard check must stay green once the index exists on disk.
+  {
+    const name = "npm run check exits 0 with chapters/INDEX.md present";
+    if (!existsSync(INDEX_MD)) {
+      fail(name, "build-toc did not write chapters/INDEX.md, so the case proves nothing");
+    } else {
+      const { code, out: log } = run(["chapters"]);
+      if (code !== 0) fail(name, `exit ${code}\n${log}`);
+      else if (/INDEX\.md/i.test(log)) fail(name, `the checker still reported INDEX.md:\n${log}`);
+      else pass(name);
+    }
+  }
 } finally {
+  // Put the working tree back the way it was found: restore a committed
+  // INDEX.md / toc.json byte for byte, delete the ones this test created.
+  restore(indexSnap);
+  restore(tocSnap);
   try {
     rmSync(workDir, { recursive: true, force: true });
   } catch {
