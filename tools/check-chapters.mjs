@@ -5,6 +5,9 @@
 //   - the cast is parsed from STYLE.md ("- Character: <Name>")
 //   - the legal chapter slots are parsed from outline.md ("- Chapter 01:", "- Chapters 07-18:")
 //   - the header fields and the Title/filename rule come from chapters/00-template.md
+//   - every chapter must declare "Filename:" and it must name the file it sits in,
+//     written either bare ("01-the-low-tide.md") or under chapters/
+//     ("chapters/01-the-low-tide.md") — nothing else is accepted
 // Amending STYLE.md or outline.md by ordinary proposal therefore keeps this checker correct.
 //
 // Usage:
@@ -22,8 +25,15 @@ import { fileURLToPath } from "node:url";
 
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
-const REQUIRED_FIELDS = ["Title", "ChapterNumber", "TargetWords", "ContinuityNotes", "FocalCharacter"];
-const HEADER_KEYS = ["Filename", ...REQUIRED_FIELDS];
+const REQUIRED_FIELDS = [
+  "Filename",
+  "Title",
+  "ChapterNumber",
+  "TargetWords",
+  "ContinuityNotes",
+  "FocalCharacter",
+];
+const HEADER_KEYS = [...REQUIRED_FIELDS];
 const MIN_WORDS = 2000;
 const MAX_WORDS = 3000;
 const SKIP_FILES = new Set(["00-template.md"]);
@@ -120,6 +130,24 @@ function checkFile(dir, file, cast, slots, seenNumbers) {
   // 2. required header fields
   for (const key of REQUIRED_FIELDS) {
     if (!(key in fields) || fields[key] === "") errors.push(`missing header field "${key}:"`);
+  }
+
+  // 2b. the Filename header must name this very file.
+  // Accepted forms: the bare basename "NN-title.md" or the repository path
+  // "chapters/NN-title.md". Any other directory, and any other name, is an error.
+  if (fields.Filename) {
+    const declared = fields.Filename.trim().replace(/\\/g, "/").replace(/^\.\//, "");
+    if (declared) {
+      const declaredBase = declared.slice(declared.lastIndexOf("/") + 1);
+      const declaredDir = declared.slice(0, declared.length - declaredBase.length).replace(/\/+$/, "");
+      if (declaredDir !== "" && declaredDir !== "chapters") {
+        errors.push(
+          `Filename header "${fields.Filename}" must be written as "${file}" or "chapters/${file}"`
+        );
+      } else if (declaredBase !== file) {
+        errors.push(`Filename header "${fields.Filename}" does not match file "${file}"`);
+      }
+    }
   }
 
   // 3. leftover template placeholders anywhere in the header
