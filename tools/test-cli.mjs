@@ -20,7 +20,13 @@
 // from a raw URL pathname (percent-encoded, and "/C:/..." on Windows). Every generator
 // case writes into a temp directory via --dir, so chapters/ is never touched.
 //
-// The last trap it guards is the stub: the checker used to print "ok" for a file with a
+// Cases 13 and 14 guard the newest one: chapters/INDEX.md and tools/validation/toc.json are
+// committed now, and "node tools/build-toc.mjs --check" fails when either has drifted away
+// from the chapters folder. The cases prove --check passes on fresh output, fails by name on
+// a hand-edited index without rewriting it, and that what is committed is what the builder
+// produces today.
+//
+// The other trap it guards is the stub: the checker used to print "ok" for a file with a
 // perfect header and no chapter in it. Cases 11 and 12 hold that line — a generated stub
 // fails, a stub with its placeholders filled in STILL fails, and only real prose passes.
 //
@@ -337,6 +343,63 @@ try {
     } else if (/ERROR 01-the-low-tide\.md/.test(log)) {
       fail(name, `the clean fixture was flagged:\n${log}`);
     } else pass(name);
+  }
+
+  // 13. the index may not drift. build-toc.mjs --check renders what chapters/ says the
+  //     index should be and compares it with the committed files: fresh output passes,
+  //     a hand-edited INDEX.md fails by name and points at the one-command fix.
+  //     indexSnap/tocSnap were taken in case 6, so the finally block puts both back.
+  {
+    const name = "build-toc --check passes on a fresh index and fails on a stale one";
+    if (!indexSnap) indexSnap = snapshot(INDEX_MD);
+    if (!tocSnap) tocSnap = snapshot(TOC_JSON);
+
+    const built = runScript(TOC_BUILDER, []);
+    if (built.code !== 0) {
+      fail(name, `build-toc exited ${built.code}\n${built.out}`);
+    } else {
+      const fresh = runScript(TOC_BUILDER, ["--check"]);
+      if (fresh.code !== 0) {
+        fail(name, `--check failed straight after a build:\n${fresh.out}`);
+      } else {
+        const good = readFileSync(INDEX_MD, "utf8");
+        writeFileSync(INDEX_MD, `${good}| 99 | 99-not-a-chapter.md | Drift | Nobody | none |\n`, "utf8");
+        const stale = runScript(TOC_BUILDER, ["--check"]);
+        // The build must not have been run by --check: the edit is still on disk.
+        const untouched = readFileSync(INDEX_MD, "utf8") !== good;
+        writeFileSync(INDEX_MD, good, "utf8");
+        if (stale.code !== 1) {
+          fail(name, `expected exit 1 on a stale index, got ${stale.code}\n${stale.out}`);
+        } else if (!/INDEX\.md/.test(stale.out)) {
+          fail(name, `the stale file was not named:\n${stale.out}`);
+        } else if (!/npm run toc/.test(stale.out)) {
+          fail(name, `the fix was not printed:\n${stale.out}`);
+        } else if (!untouched) {
+          fail(name, "--check rewrote chapters/INDEX.md instead of only reporting");
+        } else {
+          const again = runScript(TOC_BUILDER, ["--check"]);
+          if (again.code !== 0) fail(name, `--check still fails after restoring the index:\n${again.out}`);
+          else pass(name);
+        }
+      }
+    }
+  }
+
+  // 14. and the committed index must be the one the builder produces — if it is not,
+  //     the repository is shipping a table of contents that lies about the book.
+  {
+    const name = "the committed chapters/INDEX.md and toc.json match chapters/";
+    if (!indexSnap || !indexSnap.existed || !tocSnap || !tocSnap.existed) {
+      fail(name, "chapters/INDEX.md and tools/validation/toc.json must be committed");
+    } else {
+      const built = runScript(TOC_BUILDER, []);
+      const rebuiltIndex = existsSync(INDEX_MD) ? readFileSync(INDEX_MD, "utf8") : null;
+      const rebuiltToc = existsSync(TOC_JSON) ? readFileSync(TOC_JSON, "utf8") : null;
+      if (built.code !== 0) fail(name, `build-toc exited ${built.code}\n${built.out}`);
+      else if (rebuiltIndex !== indexSnap.content) fail(name, "the committed chapters/INDEX.md is stale — run npm run toc");
+      else if (rebuiltToc !== tocSnap.content) fail(name, "the committed tools/validation/toc.json is stale — run npm run toc");
+      else pass(name);
+    }
   }
 } finally {
   // Put the working tree back the way it was found: restore a committed

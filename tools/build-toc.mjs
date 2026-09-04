@@ -48,15 +48,18 @@ function slug(text) {
     .replace(/^-+|-+$/g, '');
 }
 
-function writeIndex(items) {
+// The two renderers below are PURE: they return exactly the bytes the tool used to
+// write, and nothing else. --check needs the expected text in memory to compare it
+// with what is on disk, and there must be only one description of that text, or the
+// check and the build would drift apart — which is the very failure this guards.
+function renderIndex(items) {
   const lines = [];
   lines.push('# Chapter index');
   lines.push('');
   if (!items.length) {
     lines.push('No chapters found.');
     lines.push('');
-    writeFileSync(OUT_INDEX, lines.join('\n'), 'utf8');
-    return;
+    return lines.join('\n');
   }
   lines.push('| # | Filename | Title | FocalCharacter | ContinuityNotes |');
   lines.push('|---:|---|---|---|---|');
@@ -69,12 +72,10 @@ function writeIndex(items) {
     lines.push(`| ${num} | ${file} | ${title} | ${focal} | ${notes} |`);
   }
   lines.push('');
-  writeFileSync(OUT_INDEX, lines.join('\n'), 'utf8');
+  return lines.join('\n');
 }
 
-function writeJson(items) {
-  const outDir = dirname(OUT_JSON);
-  if (!existsSync(outDir)) mkdirSync(outDir, { recursive: true });
+function renderJson(items) {
   const arr = items.map((it) => ({
     filename: it.filename,
     chapterNumber: it.chapterNumber,
@@ -82,10 +83,44 @@ function writeJson(items) {
     focalCharacter: it.focalCharacter,
     continuityNotes: it.continuityNotes,
   }));
-  writeFileSync(OUT_JSON, JSON.stringify(arr, null, 2) + '\n', 'utf8');
+  return JSON.stringify(arr, null, 2) + '\n';
+}
+
+function writeIndex(items) {
+  writeFileSync(OUT_INDEX, renderIndex(items), 'utf8');
+}
+
+function writeJson(items) {
+  const outDir = dirname(OUT_JSON);
+  if (!existsSync(outDir)) mkdirSync(outDir, { recursive: true });
+  writeFileSync(OUT_JSON, renderJson(items), 'utf8');
+}
+
+// --check: compare what the chapters folder says the index SHOULD be with what is
+// committed. Exit 1 with the one-command fix when they differ; the tool never
+// writes anything in this mode.
+function checkOutputs(items) {
+  const wanted = [
+    { path: OUT_INDEX, label: 'chapters/INDEX.md', expected: renderIndex(items) },
+    { path: OUT_JSON, label: 'tools/validation/toc.json', expected: renderJson(items) },
+  ];
+  const problems = [];
+  for (const w of wanted) {
+    const actual = readIf(w.path);
+    if (actual === null) problems.push(`${w.label} is missing`);
+    else if (actual !== w.expected) problems.push(`${w.label} is stale (it does not match chapters/)`);
+  }
+  if (problems.length) {
+    for (const p of problems) console.error(`ERROR ${p}`);
+    console.error('fix: run npm run toc and commit the result');
+    process.exit(1);
+  }
+  console.log(`index up to date (${items.length} chapter(s))`);
+  process.exit(0);
 }
 
 function main() {
+  const check = process.argv.includes('--check');
   const text = readIf(CHAPTERS_DIR);
   if (text === null && !existsSync(CHAPTERS_DIR)) {
     console.error('chapters/ directory not found');
@@ -114,6 +149,11 @@ function main() {
     return a.filename.localeCompare(b.filename);
   });
 
+  if (check) {
+    checkOutputs(items);
+    return;
+  }
+
   writeIndex(items);
   writeJson(items);
   console.log(`wrote ${OUT_INDEX} and ${OUT_JSON}`);
@@ -121,6 +161,7 @@ function main() {
 
 if (process.argv.includes('--help') || process.argv.includes('-h')) {
   console.log('build-toc.mjs — generate chapters/INDEX.md and tools/validation/toc.json');
+  console.log('  --check   do not write: fail with exit 1 if either file is missing or stale');
   process.exit(0);
 }
 
