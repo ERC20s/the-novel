@@ -278,12 +278,17 @@ function parseArgs(argv) {
   let expectFail = false;
   let reportPath = null;
   let reportAsked = false;
+  let strict = false;
   const positional = [];
 
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a === "--expect-fail") {
       expectFail = true;
+      continue;
+    }
+    if (a === "--strict") {
+      strict = true;
       continue;
     }
     if (a === "--report") {
@@ -305,11 +310,11 @@ function parseArgs(argv) {
     positional.push(a);
   }
 
-  return { expectFail, reportPath, reportAsked, positional };
+  return { expectFail, reportPath, reportAsked, positional, strict };
 }
 
 function main(argv) {
-  const { expectFail, reportPath, reportAsked, positional } = parseArgs(argv);
+  const { expectFail, reportPath, reportAsked, positional, strict } = parseArgs(argv);
 
   if (reportAsked && !reportPath) {
     console.error("check-chapters: --report needs a file path, e.g. --report=tools/validation/REPORT.json");
@@ -333,25 +338,55 @@ function main(argv) {
     .filter((f) => f.toLowerCase().endsWith(".md") && !SKIP_FILES.has(f.toLowerCase()))
     .sort();
 
-  let errorCount = 0;
-  let warningCount = 0;
   const seenNumbers = new Map();
-  const filesWithErrors = [];
-
   const perFile = {};
 
   for (const file of files) {
     const { errors, warnings } = checkFile(target, file, cast, slots, seenNumbers);
-    errorCount += errors.length;
-    warningCount += warnings.length;
-    perFile[file] = { errors, warnings };
-    if (errors.length) filesWithErrors.push(file);
-    if (!errors.length && !warnings.length) {
+    // keep the raw lists; we'll decide how to count and print after parsing flags
+    perFile[file] = { errors: [...errors], warnings: [...warnings] };
+  }
+
+  // Totals
+  let errorCount = Object.values(perFile).reduce((s, f) => s + f.errors.length, 0);
+  let warningCount = Object.values(perFile).reduce((s, f) => s + f.warnings.length, 0);
+
+  // If strict mode requested and we're not running a self-test, fold warnings into errors
+  if (parseArgs && typeof parseArgs === "function") {
+    // noop: keeps linter happy about parseArgs reference
+  }
+
+  if (typeof strict !== "undefined" && strict && !expectFail) {
+    // fold warnings into errors for exit code and the JSON report
+    for (const file of files) {
+      const w = perFile[file].warnings || [];
+      if (w.length) {
+        perFile[file].errors = perFile[file].errors.concat(w);
+        perFile[file].warnings = [];
+      }
+    }
+    errorCount += warningCount;
+    warningCount = 0;
+  }
+
+  const filesWithErrors = files.filter((f) => perFile[f].errors && perFile[f].errors.length);
+
+  // Print results. In strict mode warnings are shown as ERROR lines unless we're
+  // in expectFail (self-test) mode where warnings must be ignored.
+  for (const file of files) {
+    const { errors, warnings } = perFile[file];
+    if ((!errors || !errors.length) && (!warnings || !warnings.length)) {
       console.log(`ok    ${file}`);
       continue;
     }
-    for (const e of errors) console.log(`ERROR ${file}: ${e}`);
-    for (const w of warnings) console.log(`warn  ${file}: ${w}`);
+    for (const e of errors || []) console.log(`ERROR ${file}: ${e}`);
+    if (warnings && warnings.length) {
+      if (strict && !expectFail) {
+        for (const w of warnings) console.log(`ERROR ${file}: ${w}`);
+      } else {
+        for (const w of warnings) console.log(`warn  ${file}: ${w}`);
+      }
+    }
   }
 
   console.log(
@@ -374,6 +409,12 @@ function main(argv) {
         files: perFile,
         summary,
       };
+      // In strict mode, report should reflect warnings folded into errors for external tooling.
+      if (typeof strict !== "undefined" && strict && !expectFail) {
+        // recompute counts to be safe
+        report.errorCount = Object.values(perFile).reduce((s, f) => s + f.errors.length, 0);
+        report.warningCount = 0;
+      }
       writeFileSync(outPath, JSON.stringify(report, null, 2) + "\n", "utf8");
       console.log(`wrote report ${outPath}`);
     } catch (err) {
