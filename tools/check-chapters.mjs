@@ -224,6 +224,14 @@ function checkFile(dir, file, cast, slots, seenNumbers) {
     );
   }
 
+  // 6b. merge conflict markers anywhere in the file are an error.
+  // Unresolved Git conflict markers (<<<<<<<, =======, >>>>>>>) are disruptive
+  // and indicate the file was not inspected after a merge. Scan the whole file
+  // (header + body) and fail if any of those token sequences appear.
+  if (/<<<<<<<|=======|>>>>>>>/.test(text)) {
+    errors.push("merge conflict markers present (<<<<<<< / ======= / >>>>>>>)");
+  }
+  
   // 7. word count.
   //   - under the stub floor: an ERROR. The header can be perfect and the file still
   //     contain no chapter, which is exactly what tools/new-chapter.mjs leaves behind.
