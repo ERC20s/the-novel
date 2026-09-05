@@ -55,7 +55,17 @@ function writeIndex(items) {
   if (!items.length) {
     lines.push('No chapters found.');
     lines.push('');
-    writeFileSync(OUT_INDEX, lines.join('\n'), 'utf8');
+    const text = lines.join('\n');
+    const existing = readIf(OUT_INDEX);
+    if (existing === null) {
+      writeFileSync(OUT_INDEX, text, 'utf8');
+      console.log(`wrote ${OUT_INDEX}`);
+    } else if (existing !== text) {
+      writeFileSync(OUT_INDEX, text, 'utf8');
+      console.log(`updated ${OUT_INDEX}`);
+    } else {
+      console.log(`index unchanged: ${OUT_INDEX}`);
+    }
     return;
   }
   lines.push('| # | Filename | Title | FocalCharacter | ContinuityNotes |');
@@ -69,7 +79,17 @@ function writeIndex(items) {
     lines.push(`| ${num} | ${file} | ${title} | ${focal} | ${notes} |`);
   }
   lines.push('');
-  writeFileSync(OUT_INDEX, lines.join('\n'), 'utf8');
+  const text = lines.join('\n');
+  const existing = readIf(OUT_INDEX);
+  if (existing === null) {
+    writeFileSync(OUT_INDEX, text, 'utf8');
+    console.log(`wrote ${OUT_INDEX}`);
+  } else if (existing !== text) {
+    writeFileSync(OUT_INDEX, text, 'utf8');
+    console.log(`updated ${OUT_INDEX}`);
+  } else {
+    console.log(`index unchanged: ${OUT_INDEX}`);
+  }
 }
 
 function writeJson(items) {
@@ -82,7 +102,17 @@ function writeJson(items) {
     focalCharacter: it.focalCharacter,
     continuityNotes: it.continuityNotes,
   }));
-  writeFileSync(OUT_JSON, JSON.stringify(arr, null, 2) + '\n', 'utf8');
+  const jsonText = JSON.stringify(arr, null, 2) + '\n';
+  const existing = readIf(OUT_JSON);
+  if (existing === null) {
+    writeFileSync(OUT_JSON, jsonText, 'utf8');
+    console.log(`wrote ${OUT_JSON}`);
+  } else if (existing !== jsonText) {
+    writeFileSync(OUT_JSON, jsonText, 'utf8');
+    console.log(`updated ${OUT_JSON}`);
+  } else {
+    console.log(`toc unchanged: ${OUT_JSON}`);
+  }
 }
 
 function main() {
@@ -116,7 +146,7 @@ function main() {
 
   writeIndex(items);
   writeJson(items);
-  console.log(`wrote ${OUT_INDEX} and ${OUT_JSON}`);
+  console.log('build-toc: done');
 }
 
 if (process.argv.includes('--help') || process.argv.includes('-h')) {
