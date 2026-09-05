@@ -133,6 +133,7 @@ run:
     "check": "npm run check",
     "test": "npm test",
     "check:report": "npm run check:report",
+    "check:strict": "npm run check:strict",
     "toc": "npm run toc",
     "new": "npm run new"
   }
