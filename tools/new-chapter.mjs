@@ -2,7 +2,7 @@
 // tools/new-chapter.mjs — create a new chapter stub consistent with the project's template
 //
 // Usage:
-//   node tools/new-chapter.mjs NN "Chapter Title" [--focal="Name"] [--dir=PATH]
+//   node tools/new-chapter.mjs NN "Chapter Title" [--focal="Name"] [--dir=PATH] [--force]
 //
 // The repository root is resolved the same way every other tool in tools/ does it:
 //   resolve(dirname(fileURLToPath(import.meta.url)), "..")
@@ -17,9 +17,10 @@
 // which stays correct whatever --dir is.
 //
 // Exit codes: 0 wrote the stub, 2 bad arguments, 3 the file already exists
-// (never overwritten), 4 the write itself failed.
+// (never overwritten), 4 the write itself failed, 5 the chapter NUMBER (slot) is
+// already claimed by another file (different title). Use --force to override.
 
-import { writeFileSync, existsSync, readFileSync, mkdirSync } from 'node:fs';
+import { writeFileSync, existsSync, readFileSync, mkdirSync, readdirSync } from 'node:fs';
 import { join, resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -74,12 +75,12 @@ function readCast() {
 }
 
 function usage() {
-  console.error('usage: node tools/new-chapter.mjs NN "Chapter Title" [--focal="Name"] [--dir=PATH]');
+  console.error('usage: node tools/new-chapter.mjs NN "Chapter Title" [--focal="Name"] [--dir=PATH] [--force]');
 }
 
 // One pass over the command line: flags never end up in the positional list.
 function parseArgs(argv) {
-  const args = { focal: null, dir: null, dirAsked: false };
+  const args = { focal: null, dir: null, dirAsked: false, force: false };
   const rest = [];
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
@@ -100,6 +101,8 @@ function parseArgs(argv) {
       } else {
         args.dir = null;
       }
+    } else if (a === '--force') {
+      args.force = true;
     } else {
       rest.push(a);
     }
@@ -111,7 +114,7 @@ function parseArgs(argv) {
 
 function main() {
   const argv = process.argv.slice(2);
-  const { nn, title, focal, dir, dirAsked } = parseArgs(argv);
+  const { nn, title, focal, dir, dirAsked, force } = parseArgs(argv);
   if (nn === undefined || title === undefined) {
     usage();
     process.exit(2);
@@ -142,6 +145,28 @@ function main() {
   if (existsSync(path)) {
     console.error(`refusing to overwrite existing file: ${path}`);
     process.exit(3);
+  }
+
+  // refuse to create a second file that claims the same two-digit slot
+  try {
+    if (existsSync(outDir)) {
+      const files = readdirSync(outDir, { withFileTypes: false });
+      for (const f of files) {
+        const m = String(f).match(/^([0-9]{2})-(.+)\.md$/i);
+        if (m && m[1] === nn) {
+          if (!force) {
+            console.error(`chapter ${nn} is already taken by ${f}\nrefuse to create a second file for the same slot. Either retitle with ` +
+              "git mv OLDFILE NEWFILE, or pass --force to bypass this check");
+            process.exit(5);
+          } else {
+            console.warn(`--force: writing despite an existing file claiming chapter ${nn} (${f})`);
+            break;
+          }
+        }
+      }
+    }
+  } catch (err) {
+    // if reading the directory fails, continue — the later write will report an error
   }
 
   // warn if the slot is not declared in outline.md
