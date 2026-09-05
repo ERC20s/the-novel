@@ -231,6 +231,24 @@ function checkFile(dir, file, cast, slots, seenNumbers) {
   if (/<<<<<<<|=======|>>>>>>>/.test(text)) {
     errors.push("merge conflict markers present (<<<<<<< / ======= / >>>>>>>)");
   }
+
+  // 6c. TargetWords must be a numeric range like "2000-3000" (hyphen or en‑dash allowed).
+  // Accept only a low and a high integer separated by a hyphen or en‑dash, with optional
+  // surrounding spaces. Reject free-form values such as "~2000" or "two thousand to three thousand".
+  if (fields.TargetWords) {
+    const m = fields.TargetWords.match(/^\s*(\d+)\s*[-–]\s*(\d+)\s*$/);
+    if (!m) {
+      errors.push("TargetWords must be a numeric range like '2000-3000'");
+    } else {
+      const low = Number(m[1]);
+      const high = Number(m[2]);
+      if (!Number.isFinite(low) || !Number.isFinite(high) || low <= 0 || high <= 0) {
+        errors.push("TargetWords must contain positive integers, e.g. '2000-3000'");
+      } else if (low > high) {
+        errors.push("TargetWords low bound must be less than or equal to the high bound");
+      }
+    }
+  }
   
   // 7. word count.
   //   - under the stub floor: an ERROR. The header can be perfect and the file still
