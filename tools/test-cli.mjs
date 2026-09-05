@@ -267,6 +267,33 @@ try {
     else pass(name);
   }
 
+  // 9b. a second generator invocation with a different title must be refused with exit 5
+  //      unless --force is provided; it must write no file in that slot.
+  {
+    const name = "new-chapter refuses to create a second file for the same slot and exits 5";
+    const written = join(genDir, GEN_FILE);
+    const second = runGenerator([GEN_NN, "A Different Title", `--dir=${genDir}`]);
+    if (second.code !== 5) fail(name, `expected exit 5, got ${second.code}\n${second.out}`);
+    else if (!existsSync(written)) fail(name, "original stub missing after refusal");
+    else pass(name);
+  }
+
+  // 9c. providing --force allows writing a second file for the same slot into a fresh dir.
+  {
+    const name = "new-chapter --force writes despite a claimed slot";
+    // make a fresh directory so the generator will create the file there; the
+    // existing file in genDir should not be modified.
+    const forcedRoot = mkdtempSync(join(tmpdir(), "new-chapter-force-"));
+    const forcedDir = join(forcedRoot, "drafts");
+    const before = existsSync(join(genDir, GEN_FILE)) ? readFileSync(join(genDir, GEN_FILE), "utf8") : null;
+    const forced = runGenerator([GEN_NN, "A Different Title", `--dir=${forcedDir}`, "--force"]);
+    const forcedPath = join(forcedDir, "07-a-different-title.md");
+    if (forced.code !== 0) fail(name, `expected exit 0, got ${forced.code}\n${forced.out}`);
+    else if (!existsSync(forcedPath)) fail(name, `no file written at ${forcedPath}`);
+    else if (before !== null && readFileSync(join(genDir, GEN_FILE), "utf8") !== before) fail(name, "existing file was modified by --force case");
+    else pass(name);
+  }
+
   // 10. argument validation: the chapter number is two digits or nothing.
   {
     const name = "new-chapter rejects a one-digit chapter number with exit 2";
