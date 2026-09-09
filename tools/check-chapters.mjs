@@ -347,6 +347,22 @@ function main(argv) {
     perFile[file] = { errors: [...errors], warnings: [...warnings] };
   }
 
+  // outline.md declares the novel's legal chapter slots; a slot with no matching
+  // ChapterNumber among the files just scanned is drift worth surfacing, but never
+  // worth failing the run over by default — an outline is allowed to reserve chapters
+  // nobody has written yet. Kept as its own perFile-shaped entry ("__outline__", never
+  // a legal NN-title.md name) so it rides the same totals, printing and report code as
+  // every other file.
+  if (slots.slots.size) {
+    const missingSlots = [...slots.slots].filter((n) => !seenNumbers.has(n)).sort((a, b) => a - b);
+    if (missingSlots.length) {
+      perFile["__outline__"] = {
+        errors: [],
+        warnings: missingSlots.map((n) => `slot ${String(n).padStart(2, "0")} has no chapter file`),
+      };
+    }
+  }
+
   // Totals
   let errorCount = Object.values(perFile).reduce((s, f) => s + f.errors.length, 0);
   let warningCount = Object.values(perFile).reduce((s, f) => s + f.warnings.length, 0);
@@ -357,8 +373,10 @@ function main(argv) {
   }
 
   if (typeof strict !== "undefined" && strict && !expectFail) {
-    // fold warnings into errors for exit code and the JSON report
-    for (const file of files) {
+    // fold warnings into errors for exit code and the JSON report — over every
+    // perFile entry, including the synthetic "__outline__" one, so a strict run
+    // makes a missing slot blocking too.
+    for (const file of Object.keys(perFile)) {
       const w = perFile[file].warnings || [];
       if (w.length) {
         perFile[file].errors = perFile[file].errors.concat(w);
@@ -386,6 +404,16 @@ function main(argv) {
       } else {
         for (const w of warnings) console.log(`warn  ${file}: ${w}`);
       }
+    }
+  }
+
+  // Outline slot drift is printed as its own line(s) — "outline" is not a scanned
+  // file, so it never gets an "ok" line and never counts toward files.length above.
+  {
+    const outlineEntry = perFile["__outline__"];
+    if (outlineEntry) {
+      for (const e of outlineEntry.errors || []) console.log(`ERROR outline: ${e}`);
+      for (const w of outlineEntry.warnings || []) console.log(`warn  outline: ${w}`);
     }
   }
 
