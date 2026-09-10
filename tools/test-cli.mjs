@@ -422,7 +422,40 @@ try {
       /* a leftover temp directory is not a test failure */
     }
 
-    // 14. duplicate Title detection: two files whose Titles differ only by
+    // 14. diacritic titles slug consistently with the checker: generate a title
+    //     containing a combining mark (Café) and assert the checker does not report
+    //     a Title-vs-filename mismatch. The generated file is filled with prose so
+    //     the checker can exercise the Title vs filename check without stub noise.
+    {
+      const name = "diacritic Title slugging (Café → cafe)";
+      const diaRoot = mkdtempSync(join(tmpdir(), "new-chapter-diacritic-"));
+      const diaDir = join(diaRoot, "drafts");
+      const DIA_NN = "09";
+      const DIA_TITLE = "Café Society";
+      const DIA_FILE = "09-cafe-society.md";
+      const written = join(diaDir, DIA_FILE);
+      try {
+        const gen = runGenerator([DIA_NN, DIA_TITLE, `--dir=${diaDir}`]);
+        if (gen.code !== 0 || !existsSync(written)) {
+          fail(name, `generator did not write the stub: exit ${gen.code}\n${gen.out}`);
+        } else {
+          const filled = readFileSync(written, "utf8")
+            .replace(/^ContinuityNotes: .*$/m, "ContinuityNotes: diacritic slugging test")
+            .replace(/^FocalCharacter: .*$/m, `FocalCharacter: ${GEN_FOCAL}`);
+          writeFileSync(written, `${filled}\n${PROSE}\n`, "utf8");
+
+          const res = run([diaDir]);
+          if (res.code !== 0) fail(name, `checker failed after writing prose: exit ${res.code}\n${res.out}`);
+          else if (/slugs to/.test(res.out) || /Title ".*" slugs to/.test(res.out)) {
+            fail(name, `checker reported Title-vs-filename mismatch:\n${res.out}`);
+          } else pass(name);
+        }
+      } finally {
+        try { rmSync(diaRoot, { recursive: true, force: true }); } catch { }
+      }
+    }
+
+    // 15. duplicate Title detection: two files whose Titles differ only by
     //     case/punctuation must be warned about. Files are given different
     //     chapter numbers but the same slug-based title so the checker should
     //     emit a duplicate-Title warning for both.

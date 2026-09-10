@@ -29,6 +29,8 @@ const DEFAULT_DIR = 'chapters';
 
 function slug(text) {
   return String(text || '')
+    .normalize('NFKD')
+    .replace(/\p{M}/gu, '')
     .toLowerCase()
     .replace(/[‘’'"`]/g, '')
     .replace(/[^a-z0-9]+/g, '-')
