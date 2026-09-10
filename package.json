@@ -11,7 +11,8 @@
     "test:cli": "node tools/test-cli.mjs",
     "check:report": "node tools/check-chapters.mjs chapters --report=tools/validation/REPORT.json",
     "toc": "node tools/build-toc.mjs",
-    "new": "node tools/new-chapter.mjs"
+    "new": "node tools/new-chapter.mjs",
+    "slots": "node tools/list-slots.mjs"
   },
   "engines": {
     "node": ">=18"
