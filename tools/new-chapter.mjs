@@ -67,7 +67,7 @@ function readCast() {
     const src = readFileSync(join(REPO_ROOT, 'STYLE.md'), 'utf8');
     const names = [];
     for (const line of src.split(/\r?\n/)) {
-      const m = line.match(/^\s*-\s*Character:\s*(.+?)\s*$/);
+      const m = line.match(/^\s*-\s*Character:\s*(.+?)\s*$/i);
       if (m && !names.includes(m[1])) names.push(m[1]);
     }
     return names;
