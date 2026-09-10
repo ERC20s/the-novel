@@ -280,7 +280,7 @@ function checkFile(dir, file, cast, slots, seenNumbers) {
     );
   }
 
-  return { errors, warnings };
+  return { errors, warnings, title: fields.Title || null };
 }
 
 // ---------------------------------------------------------------- run
@@ -358,9 +358,28 @@ function main(argv) {
   const perFile = {};
 
   for (const file of files) {
-    const { errors, warnings } = checkFile(target, file, cast, slots, seenNumbers);
-    // keep the raw lists; we'll decide how to count and print after parsing flags
-    perFile[file] = { errors: [...errors], warnings: [...warnings] };
+    const { errors, warnings, title } = checkFile(target, file, cast, slots, seenNumbers);
+    // keep the raw lists and the parsed Title; we'll decide how to count and print after parsing flags
+    perFile[file] = { errors: [...errors], warnings: [...warnings], title: title || null };
+  }
+
+  // duplicate Title detection: collect normalized titles and warn when a title appears in >1 file
+  const titleMap = new Map();
+  for (const file of files) {
+    const t = perFile[file].title;
+    if (!t) continue;
+    const key = String(t).trim();
+    if (!key) continue;
+    const list = titleMap.get(key) || [];
+    list.push(file);
+    titleMap.set(key, list);
+  }
+  for (const [title, fileList] of titleMap.entries()) {
+    if (fileList.length <= 1) continue;
+    for (const file of fileList) {
+      const others = fileList.filter((f) => f !== file).join(", ");
+      perFile[file].warnings.push(`duplicate Title "${title}" also used by: ${others}`);
+    }
   }
 
   // outline.md declares the novel's legal chapter slots; a slot with no matching
