@@ -91,7 +91,7 @@ function readCast() {
   if (text === null) return { names: [], source: null };
   const names = [];
   for (const line of text.split(/\r?\n/)) {
-    const m = line.match(/^\s*-\s*Character:\s*(.+?)\s*$/);
+    const m = line.match(/^\s*-\s*Character:\s*(.+?)\s*$/i);
     if (m && !names.includes(m[1])) names.push(m[1]);
   }
   return { names, source: "STYLE.md" };
