@@ -118,16 +118,23 @@ function readSlots() {
 
 // Front matter is plain text at the top of the file: the first run of "Key: value"
 // lines. First occurrence of a key wins; the body is everything after the last one.
+// Accept header keys case-insensitively by mapping lower-cased keys to the
+// project's canonical HEADER_KEYS names. This preserves the rest of the code's
+// expectation that fields use the canonical names (e.g. "Filename", "Title").
 function parseHeader(text) {
   const lines = text.split(/\r?\n/);
   const fields = {};
   let lastHeaderLine = -1;
   const limit = Math.min(lines.length, 40);
+  // build a map of lowercased key -> canonical key name
+  const KEY_MAP = Object.fromEntries(HEADER_KEYS.map((k) => [k.toLowerCase(), k]));
   for (let i = 0; i < limit; i++) {
     const m = lines[i].match(/^\s*([A-Za-z][A-Za-z ]*?)\s*:\s*(.*)$/);
     if (!m) continue;
-    const key = m[1].trim();
-    if (!HEADER_KEYS.includes(key)) continue;
+    const rawKey = m[1].trim();
+    const mapped = KEY_MAP[rawKey.toLowerCase()];
+    if (!mapped) continue;
+    const key = mapped; // canonical name from HEADER_KEYS
     if (!(key in fields)) fields[key] = m[2].trim();
     lastHeaderLine = i;
   }
