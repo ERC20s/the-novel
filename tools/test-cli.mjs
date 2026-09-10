@@ -421,6 +421,60 @@ try {
     } catch {
       /* a leftover temp directory is not a test failure */
     }
+
+    // 14. duplicate Title detection: two files whose Titles differ only by
+    //     case/punctuation must be warned about. Files are given different
+    //     chapter numbers but the same slug-based title so the checker should
+    //     emit a duplicate-Title warning for both.
+    {
+      const name = "duplicate Title detection (case/punct)";
+      const dupRoot = mkdtempSync(join(tmpdir(), "dup-title-"));
+      const f1 = join(dupRoot, "10-a-moment.md");
+      const f2 = join(dupRoot, "11-a-moment.md");
+      const content1 = [
+        "Filename: 10-a-moment.md",
+        "Title: A Moment",
+        "ChapterNumber: 10",
+        "TargetWords: 2000-3000",
+        "ContinuityNotes: test duplicate title",
+        "FocalCharacter: Mara Voss",
+        "",
+        PROSE,
+        "",
+      ].join("\n");
+      const content2 = [
+        "Filename: 11-a-moment.md",
+        "Title: a moment!",
+        "ChapterNumber: 11",
+        "TargetWords: 2000-3000",
+        "ContinuityNotes: test duplicate title variant",
+        "FocalCharacter: Mara Voss",
+        "",
+        PROSE,
+        "",
+      ].join("\n");
+      try {
+        writeFileSync(f1, content1, "utf8");
+        writeFileSync(f2, content2, "utf8");
+
+        const { code, out: log } = run([dupRoot]);
+        if (code !== 0) fail(name, `exit ${code}\n${log}`);
+        else if (!/duplicate Title/.test(log)) fail(name, `no duplicate Title warning printed:\n${log}`);
+        else {
+          const dupLines = log.split(/\r?\n/).filter((l) => /duplicate Title/.test(l));
+          if (dupLines.length < 2) fail(name, `expected two duplicate warnings, got:\n${dupLines.join("\n") || "(none)"}`);
+          else if (!dupLines.some((l) => l.includes("10-a-moment.md")) || !dupLines.some((l) => l.includes("11-a-moment.md"))) {
+            fail(name, `warnings did not mention both files:\n${dupLines.join("\n")}`);
+          } else pass(name);
+        }
+      } finally {
+        try {
+          rmSync(dupRoot, { recursive: true, force: true });
+        } catch {
+          /* a leftover temp directory is not a test failure */
+        }
+      }
+    }
   }
 } finally {
   // Put the working tree back the way it was found: restore a committed
