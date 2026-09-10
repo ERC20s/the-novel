@@ -65,7 +65,12 @@ const SKIP_FILES = new Set(["00-template.md", "index.md", "readme.md"]);
 // ---------------------------------------------------------------- helpers
 
 function slug(text) {
+  // Normalize Unicode (NFKD), strip combining marks (diacritics), then create
+  // an ASCII-style slug as before: lower-case, quotes removed, non-alphanumerics
+  // become separators and leading/trailing hyphens trimmed.
   return String(text)
+    .normalize('NFKD')
+    .replace(/\p{M}/gu, '')              // strip diacritic combining marks
     .toLowerCase()
     .replace(/[‘’'"`]/g, "")     // curly and straight quotes just vanish
     .replace(/[^a-z0-9]+/g, "-")           // everything else becomes a separator
