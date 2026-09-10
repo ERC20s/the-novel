@@ -6,6 +6,7 @@
   "scripts": {
     "check": "node tools/check-chapters.mjs",
     "check:strict": "node tools/check-chapters.mjs --strict",
+    "pretest": "npm run toc",
     "test": "node tools/check-chapters.mjs tools/fixtures --expect-fail && node tools/test-cli.mjs",
     "test:cli": "node tools/test-cli.mjs",
     "check:report": "node tools/check-chapters.mjs chapters --report=tools/validation/REPORT.json",
