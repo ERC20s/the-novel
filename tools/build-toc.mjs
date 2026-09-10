@@ -28,11 +28,15 @@ function parseHeader(text) {
   const fields = {};
   let lastHeader = -1;
   const limit = Math.min(lines.length, 40);
+  // build a map of lowercased key -> canonical key name
+  const KEY_MAP = Object.fromEntries(HEADER_KEYS.map((k) => [k.toLowerCase(), k]));
   for (let i = 0; i < limit; i++) {
     const m = lines[i].match(/^\s*([A-Za-z][A-Za-z ]*?)\s*:\s*(.*)$/);
     if (!m) continue;
-    const key = m[1].trim();
-    if (!HEADER_KEYS.includes(key)) continue;
+    const rawKey = m[1].trim();
+    const mapped = KEY_MAP[rawKey.toLowerCase()];
+    if (!mapped) continue;
+    const key = mapped; // canonical name from HEADER_KEYS
     if (!(key in fields)) fields[key] = m[2].trim();
     lastHeader = i;
   }
