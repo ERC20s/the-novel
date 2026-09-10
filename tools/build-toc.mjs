@@ -41,7 +41,12 @@ function parseHeader(text) {
 }
 
 function slug(text) {
+  // Normalize Unicode (NFKD), strip combining marks (diacritics), then create
+  // an ASCII-style slug: lower-case, quotes removed, non-alphanumerics become
+  // separators and leading/trailing hyphens trimmed.
   return String(text || '')
+    .normalize('NFKD')
+    .replace(/\p{M}/gu, '')
     .toLowerCase()
     .replace(/[‘’'"`]/g, '')
     .replace(/[^a-z0-9]+/g, '-')
