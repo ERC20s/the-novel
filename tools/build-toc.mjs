@@ -68,15 +68,17 @@ function writeIndex(items) {
     }
     return;
   }
-  lines.push('| # | Filename | Title | FocalCharacter | ContinuityNotes |');
-  lines.push('|---:|---|---|---|---|');
+  // Add TargetWords as a visible column so editors and tools can see each chapter's target range.
+  lines.push('| # | Filename | Title | TargetWords | FocalCharacter | ContinuityNotes |');
+  lines.push('|---:|---|---|---|---|---|');
   for (const it of items) {
     const num = it.chapterNumber != null ? String(it.chapterNumber).padStart(2, '0') : '';
     const file = it.filename || '';
     const title = (it.title || '').replace(/\|/g, '\\|');
+    const target = (it.targetWords || '').replace(/\|/g, '\\|');
     const focal = (it.focalCharacter || '');
     const notes = (it.continuityNotes || '').replace(/\|/g, '\\|');
-    lines.push(`| ${num} | ${file} | ${title} | ${focal} | ${notes} |`);
+    lines.push(`| ${num} | ${file} | ${title} | ${target} | ${focal} | ${notes} |`);
   }
   lines.push('');
   const text = lines.join('\n');
@@ -99,6 +101,7 @@ function writeJson(items) {
     filename: it.filename,
     chapterNumber: it.chapterNumber,
     title: it.title,
+    targetWords: it.targetWords || '',
     focalCharacter: it.focalCharacter,
     continuityNotes: it.continuityNotes,
   }));
@@ -134,7 +137,8 @@ function main() {
     const chapterNumber = fields.ChapterNumber ? Number(fields.ChapterNumber) : null;
     const focalCharacter = fields.FocalCharacter || '';
     const continuityNotes = fields.ContinuityNotes || '';
-    items.push({ filename: file, chapterNumber, title, focalCharacter, continuityNotes });
+    const targetWords = fields.TargetWords || '';
+    items.push({ filename: file, chapterNumber, title, focalCharacter, continuityNotes, targetWords });
   }
   // sort by chapterNumber then filename
   items.sort((a, b) => {
