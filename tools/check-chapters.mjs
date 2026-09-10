@@ -368,17 +368,18 @@ function main(argv) {
   for (const file of files) {
     const t = perFile[file].title;
     if (!t) continue;
-    const key = String(t).trim();
+    const key = slug(String(t).trim());
     if (!key) continue;
     const list = titleMap.get(key) || [];
     list.push(file);
     titleMap.set(key, list);
   }
-  for (const [title, fileList] of titleMap.entries()) {
+  for (const [key, fileList] of titleMap.entries()) {
     if (fileList.length <= 1) continue;
     for (const file of fileList) {
       const others = fileList.filter((f) => f !== file).join(", ");
-      perFile[file].warnings.push(`duplicate Title "${title}" also used by: ${others}`);
+      const originalTitle = perFile[file].title || "";
+      perFile[file].warnings.push(`duplicate Title "${originalTitle}" also used by: ${others}`);
     }
   }
 
