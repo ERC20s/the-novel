@@ -365,6 +365,63 @@ try {
       fail(name, `the clean fixture was flagged:\n${log}`);
     } else pass(name);
   }
+  // 13. the word-count warning must honor a chapter's own validated TargetWords range
+  //     instead of the hardcoded 2,000-3,000 default. Uses the same --dir mechanism as
+  //     cases 8-11, but in a fresh directory and slot so it never collides with GEN_FILE.
+  {
+    const name = "word-count warning uses the chapter's own TargetWords range, not 2,000-3,000";
+    const rangeRoot = mkdtempSync(join(tmpdir(), "new-chapter-range-"));
+    const rangeDir = join(rangeRoot, "drafts");
+    const RANGE_NN = "08";
+    const RANGE_TITLE = "The Narrow Reach";
+    const RANGE_FILE = "08-the-narrow-reach.md";
+    const written = join(rangeDir, RANGE_FILE);
+
+    const gen = runGenerator([RANGE_NN, RANGE_TITLE, `--dir=${rangeDir}`]);
+    if (gen.code !== 0 || !existsSync(written)) {
+      fail(name, `generator did not write the stub: exit ${gen.code}\n${gen.out}`);
+    } else {
+      const stub = readFileSync(written, "utf8")
+        .replace(/^ContinuityNotes: .*$/m, "ContinuityNotes: follows the Act II development beat")
+        .replace(/^FocalCharacter: .*$/m, `FocalCharacter: ${GEN_FOCAL}`)
+        .replace(/^TargetWords: .*$/m, "TargetWords: 800-1200");
+
+      // Exactly 950 whitespace-separated tokens: comfortably inside the declared
+      // 800-1200 range and nowhere near the 2,000-3,000 default — proving the
+      // chapter's own range, not the hardcoded one, is what governs the warning.
+      const IN_RANGE = Array(950).fill("tide").join(" ");
+      writeFileSync(written, `${stub}\n${IN_RANGE}\n`, "utf8");
+      const inRange = run([rangeDir]);
+      if (inRange.code !== 0) {
+        fail(name, `an 800-1200 chapter with in-range prose should pass clean:\n${inRange.out}`);
+      } else if (/outside the/.test(inRange.out)) {
+        fail(name, `unexpected word-count warning on in-range prose:\n${inRange.out}`);
+      } else {
+        // Shorten below the declared low bound (800) but keep it over the stub floor
+        // (50), and assert the warning cites 800-1200 — never the 2,000-3,000 default.
+        const SHORT = Array(200).fill("tide").join(" ");
+        writeFileSync(written, `${stub}\n${SHORT}\n`, "utf8");
+        const short = run([rangeDir]);
+        const warnLine = short.out.split(/\r?\n/).find((l) => /outside the/.test(l));
+        if (short.code !== 0) {
+          fail(name, `a word-count warning must not fail the run:\n${short.out}`);
+        } else if (!warnLine) {
+          fail(name, `expected a word-count warning under 800 words:\n${short.out}`);
+        } else if (!/outside the 800-1,200 target/.test(warnLine)) {
+          fail(name, `warning did not cite the chapter's own 800-1200 range:\n${warnLine}`);
+        } else if (/2,000-3,000/.test(warnLine)) {
+          fail(name, `warning still cites the hardcoded 2,000-3,000 default:\n${warnLine}`);
+        } else {
+          pass(name);
+        }
+      }
+    }
+    try {
+      rmSync(rangeRoot, { recursive: true, force: true });
+    } catch {
+      /* a leftover temp directory is not a test failure */
+    }
+  }
 } finally {
   // Put the working tree back the way it was found: restore a committed
   // INDEX.md / toc.json byte for byte, delete the ones this test created.

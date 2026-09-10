@@ -235,6 +235,12 @@ function checkFile(dir, file, cast, slots, seenNumbers) {
   // 6c. TargetWords must be a numeric range like "2000-3000" (hyphen or en‑dash allowed).
   // Accept only a low and a high integer separated by a hyphen or en‑dash, with optional
   // surrounding spaces. Reject free-form values such as "~2000" or "two thousand to three thousand".
+  // The parsed low/high — when the header validates — become the bounds section 7 warns
+  // against instead of the hardcoded MIN_WORDS/MAX_WORDS, so a chapter that declares a
+  // narrower or wider range (an interlude at 800-1200, say) is judged against its own
+  // stated target rather than the novel's default.
+  let targetLow = null;
+  let targetHigh = null;
   if (fields.TargetWords) {
     const m = fields.TargetWords.match(/^\s*(\d+)\s*[-–]\s*(\d+)\s*$/);
     if (!m) {
@@ -246,22 +252,32 @@ function checkFile(dir, file, cast, slots, seenNumbers) {
         errors.push("TargetWords must contain positive integers, e.g. '2000-3000'");
       } else if (low > high) {
         errors.push("TargetWords low bound must be less than or equal to the high bound");
+      } else {
+        targetLow = low;
+        targetHigh = high;
       }
     }
   }
-  
+
   // 7. word count.
   //   - under the stub floor: an ERROR. The header can be perfect and the file still
   //     contain no chapter, which is exactly what tools/new-chapter.mjs leaves behind.
-  //   - otherwise outside 2,000-3,000: advisory, per the template's
-  //     "note deviations in ContinuityNotes".
+  //   - otherwise outside the chapter's own validated TargetWords range: advisory, per
+  //     the template's "note deviations in ContinuityNotes". Falls back to the
+  //     2,000-3,000 default only when TargetWords is missing or failed validation above,
+  //     so a broken header does not also throw an unrelated word-count warning on top of
+  //     its own error.
   const words = countWords(body);
+  const lowBound = targetLow !== null ? targetLow : MIN_WORDS;
+  const highBound = targetHigh !== null ? targetHigh : MAX_WORDS;
   if (words < STUB_MIN_WORDS) {
     errors.push(
       `chapter has no prose (${words} words, floor is ${STUB_MIN_WORDS}): this file is still a stub`
     );
-  } else if (words < MIN_WORDS || words > MAX_WORDS) {
-    warnings.push(`${words} words, outside the 2,000-3,000 target — note the deviation in ContinuityNotes`);
+  } else if (words < lowBound || words > highBound) {
+    warnings.push(
+      `${words} words, outside the ${lowBound.toLocaleString("en-US")}-${highBound.toLocaleString("en-US")} target — note the deviation in ContinuityNotes`
+    );
   }
 
   return { errors, warnings };
