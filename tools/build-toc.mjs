@@ -17,14 +17,18 @@ const HEADER_KEYS = ['Filename', 'Title', 'ChapterNumber', 'TargetWords', 'Conti
 
 function readIf(path) {
   try {
-    return existsSync(path) ? readFileSync(path, 'utf8') : null;
-  } catch {
-    return null;
+    return readFileSync(path, 'utf8');
+  } catch (err) {
+    // return null when the file does not exist or when the path is a directory,
+    // but rethrow other errors so they are not silently ignored if we hit a
+    // permission error or other unexpected problem.
+    if (err && (err.code === 'ENOENT' || err.code === 'EISDIR')) return null;
+    throw err;
   }
 }
 
 function parseHeader(text) {
-  const lines = text.split(/\r?\n/);
+  const lines = String(text || '').split(/\r?\n/);
   const fields = {};
   let lastHeader = -1;
   const limit = Math.min(lines.length, 40);
@@ -44,18 +48,6 @@ function parseHeader(text) {
   return { fields, body };
 }
 
-function slug(text) {
-  // Normalize Unicode (NFKD), strip combining marks (diacritics), then create
-  // an ASCII-style slug: lower-case, quotes removed, non-alphanumerics become
-  // separators and leading/trailing hyphens trimmed.
-  return String(text || '')
-    .normalize('NFKD')
-    .replace(/\p{M}/gu, '')
-    .toLowerCase()
-    .replace(/[‘’'"`]/g, '')
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '');
-}
 
 function writeIndex(items) {
   const lines = [];
@@ -82,10 +74,10 @@ function writeIndex(items) {
   lines.push('|---:|---|---|---|---|---|');
   for (const it of items) {
     const num = it.chapterNumber != null ? String(it.chapterNumber).padStart(2, '0') : '';
-    const file = it.filename || '';
+    const file = (it.filename || '').replace(/\|/g, '\\|');
     const title = (it.title || '').replace(/\|/g, '\\|');
     const target = (it.targetWords || '').replace(/\|/g, '\\|');
-    const focal = (it.focalCharacter || '');
+    const focal = (it.focalCharacter || '').replace(/\|/g, '\\|');
     const notes = (it.continuityNotes || '').replace(/\|/g, '\\|');
     lines.push(`| ${num} | ${file} | ${title} | ${target} | ${focal} | ${notes} |`);
   }

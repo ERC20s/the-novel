@@ -72,7 +72,7 @@ function slug(text) {
     .normalize('NFKD')
     .replace(/\p{M}/gu, '')              // strip diacritic combining marks
     .toLowerCase()
-    .replace(/[‘’'"`]/g, "")     // curly and straight quotes just vanish
+    .replace(/[‘’“”'"`]/g, "")     // curly and straight quotes (including “ and ”) vanish
     .replace(/[^a-z0-9]+/g, "-")           // everything else becomes a separator
     .replace(/^-+|-+$/g, "");
 }
