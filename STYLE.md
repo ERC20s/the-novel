@@ -75,5 +75,20 @@ Cast
   - Salient traits: polished, patient, treats the town as an asset to be developed
   - Relationship notes: employs Lena Voss; his waterfront project is the surface reason boats keep disappearing near Amity Cove
 
+Places
+- Place: Amity Cove
+
+Spelling exceptions
+- npm run check compares capitalised names in chapter prose with the Cast and Places above, and warns on a near-miss (Marra Voss, Amity Cave) or a crossed name (Mara Okafor). When a near-miss is really a different name, list it here as "- Spelling exception: Name" so the check accepts it.
+
+Banned phrases
+- npm run check fails a chapter whose narration uses one of these (dialogue, italic thought and block quotes are exempt). Each entry enforces a rule already in this file; amend the list by ordinary proposal like any other entry.
+- Banned: little did she know — omniscient commentary
+- Banned: little did he know — omniscient commentary
+- Banned: little did they know — omniscient commentary
+- Banned: unbeknownst to — omniscient commentary
+- Banned: whilst — archaism
+- Banned: heretofore — archaism
+
 Notes
 - This file is a DRAFT. Keep entries short and factual so continuity is easy to check. Update cast entries in-place rather than redefining characters in chapter prose.

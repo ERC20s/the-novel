@@ -1,19 +1,19 @@
 # CLAUDE.md
 
 A novel written chapter by chapter: STYLE.md holds voice and cast, outline.md the 24-slot arc, chapters/ the prose.
-The only code is the Node tooling in tools/ that checks chapter headers, word floors, slots and the TOC — there is no app to launch.
+The only code is the Node tooling in tools/ that checks chapter headers, word counts, outline slots and titles, cast/place spelling, banned phrases, point of view and TOC drift — there is no app to launch.
 
 ## Commands (Node >= 18, no runtime dependencies)
 
 - Install: `npm ci`
-- Check: `npm run check` (warnings for empty outline slots are expected until chapters exist)
-- Test: `npm test` (runs `npm run toc` first, then the fixture self-test and `tools/test-cli.mjs`)
+- Check: `npm run check` (errors fail; warnings are advisory; outline slots not yet written print as `note` lines and never fail)
+- Test: `npm test` (runs `npm run toc` first, then the fixture self-test, `tools/test-cli.mjs` and `node --test tools/test-rules.mjs` over tools/fixtures/editor/)
 - Report: `npm run check:report` (writes tools/validation/REPORT.json)
-- Strict: `npm run check:strict` — fails until every outline slot has a chapter; it is a pre-review gate, not part of CI
+- Strict: `npm run check:strict` — warnings fail too; this is the CI gate. Clear a warning by fixing the prose, `Deviation: ...` in ContinuityNotes (word counts), a STYLE.md `Spelling exception:`, or `<!-- check-chapters: allow RULE -->` after review
 - Other: `npm run toc`, `npm run slots`, `npm run new -- NN "Title" [--focal="Name"]`
 
-CI (.github/workflows/ci.yml) runs `npm ci`, `npm run check`, `npm test`, `npm run check:report` on every push and PR.
-Generated files (chapters/INDEX.md, tools/validation/toc.json, tools/validation/REPORT.json) are not committed.
+CI (.github/workflows/ci.yml) runs `npm ci`, `npm run check`, `npm run check:strict`, `npm test`, `npm run check:report` on every push and PR.
+The TOC output (chapters/INDEX.md, tools/validation/toc.json) is committed: run `npm run toc` after changing a chapter header and commit the result, or the check fails on TOC drift. tools/validation/REPORT.json is not committed (.gitignore).
 
 ## Ground rules
 
