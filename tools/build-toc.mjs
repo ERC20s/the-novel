@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { readdirSync, readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';
+import { readdirSync, readFileSync, writeFileSync, existsSync, mkdirSync, realpathSync } from 'node:fs';
 import { join, resolve, dirname, basename } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -169,8 +169,10 @@ function main() {
 }
 
 // Run only as a script: tools/check-chapters.mjs imports the render functions above and
-// must not rewrite the index just by loading this module.
-if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+// must not rewrite the index just by loading this module. Both sides are real paths:
+// Node resolves symlinks in import.meta.url but not in argv[1], so a run through a
+// symlinked checkout would otherwise do nothing and still exit 0.
+if (process.argv[1] && existsSync(process.argv[1]) && realpathSync(process.argv[1]) === realpathSync(fileURLToPath(import.meta.url))) {
   if (process.argv.includes('--help') || process.argv.includes('-h')) {
     console.log('build-toc.mjs — generate chapters/INDEX.md and tools/validation/toc.json');
     process.exit(0);

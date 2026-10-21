@@ -106,16 +106,22 @@ export function stripComments(text) {
   return String(text).replace(/<!--[\s\S]*?-->/g, blank);
 }
 
+// The inside of an emphasis span delimited by c: it may run over the hard line wraps of
+// its paragraph (chapters are wrapped at ~80 columns), but never over a blank line.
+const spanOf = (c) => `[^${c}\\n]+(?:\\n(?![ \\t]*\\n)[^${c}\\n]+)*`;
+const STAR_SPAN = new RegExp(`\\*\\*${spanOf("*")}\\*\\*|\\*${spanOf("*")}\\*`, "g");
+const UNDERSCORE_SPAN = new RegExp(`(^|[^\\p{L}\\p{N}_])_${spanOf("_")}_(?![\\p{L}\\p{N}_])`, "gu");
+
 // Narration only: what the narrator says, not what a character says or thinks aloud.
 // Removed (blanked): HTML comments, block-quoted lines, *italic* / _italic_ spans (the
-// convention for direct thought), and double-quoted dialogue. Within a paragraph a quote
-// left open runs to the paragraph's end, which is how a speech that carries on into the
-// next paragraph is punctuated.
+// convention for direct thought, wrapped or not), and double-quoted dialogue. Within a
+// paragraph a quote left open runs to the paragraph's end, which is how a speech that
+// carries on into the next paragraph is punctuated.
 export function narration(text) {
   let t = stripComments(text);
   t = t.replace(/^[ \t]*>.*$/gm, blank);
-  t = t.replace(/\*\*[^*\n]+\*\*|\*[^*\n]+\*/g, blank);
-  t = t.replace(/(^|[^\p{L}\p{N}_])_[^_\n]+_(?![\p{L}\p{N}_])/gu, (m, pre) => pre + blank(m.slice(pre.length)));
+  t = t.replace(STAR_SPAN, blank);
+  t = t.replace(UNDERSCORE_SPAN, (m, pre) => pre + blank(m.slice(pre.length)));
   return t
     .split(/(\n[ \t]*\n)/)
     .map((para) => {
@@ -280,8 +286,14 @@ export function checkNames(body, style, offset = 0) {
   const canonWords = [...canon].filter((w) => w.length >= 4);
   for (const { w, i } of words) {
     if (flaggedAt.has(i) || w.length < 4 || canon.has(w) || style.exceptions.has(w)) continue;
-    const prev = text.slice(0, i).replace(/[\s*_#>]+$/, "").slice(-1); // markdown emphasis is not punctuation
-    if (prev === "" || /[.!?“"‘'(\[:—–-]/.test(prev)) continue; // sentence-initial
+    // Markdown emphasis is not punctuation, and a closing quote or bracket after a full
+    // stop ends the sentence just as the stop does: “Say anything.” Calm ...
+    const prev = text
+      .slice(0, i)
+      .replace(/[\s*_#>]+$/, "")
+      .replace(/(?<=[.!?…])[”’")\]]+$/, "")
+      .slice(-1);
+    if (prev === "" || /[.!?…“"‘'(\[:—–-]/.test(prev)) continue; // sentence-initial
     const target = canonWords.find((c) => nearMiss(w, c));
     if (target) {
       add("name-spelling", `word:${w}`, `"${w}" looks like a misspelling of "${target}" (STYLE.md) — if it is a different name, add "- Spelling exception: ${w}" to STYLE.md`, lineOf(text, i, offset));

@@ -21,3 +21,12 @@ Calm water starts this sentence, and a capital that starts a sentence is not a n
 She wondered whether Dez knew. A hedged guess is not a head-hop. Her friend Mary came by,
 since Mary is a fixture spelling exception, and the dock Boss waved, since Boss does not
 share a first letter with Voss. Mara's log was full.
+
+*I should have logged it
+an hour ago,* she thought. *Whilst there was light.* A wrapped italic thought is still
+thought, and so is the one after it.
+
+“Say anything.”
+
+Cave lights came on after the quoted line, and a capital after a closing quote that ends
+a sentence is not a name.
