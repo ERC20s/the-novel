@@ -5,8 +5,8 @@ import { fileURLToPath } from 'node:url';
 
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const CHAPTERS_DIR = join(REPO_ROOT, 'chapters');
-const OUT_INDEX = join(REPO_ROOT, 'chapters', 'INDEX.md');
-const OUT_JSON = join(REPO_ROOT, 'tools', 'validation', 'toc.json');
+export const OUT_INDEX = join(REPO_ROOT, 'chapters', 'INDEX.md');
+export const OUT_JSON = join(REPO_ROOT, 'tools', 'validation', 'toc.json');
 // Not chapters: the template, a folder README, and this script's own output.
 // The index used to list itself, because the generated INDEX.md sits in the very
 // folder that is scanned. Names are compared lowercased, and the output file is
@@ -57,25 +57,16 @@ function slug(text) {
     .replace(/^-+|-+$/g, '');
 }
 
-function writeIndex(items) {
+// The exact text `npm run toc` writes to chapters/INDEX.md for these rows. Exported so
+// tools/check-chapters.mjs can compare it with the committed file (TOC drift).
+export function renderIndex(items) {
   const lines = [];
   lines.push('# Chapter index');
   lines.push('');
   if (!items.length) {
     lines.push('No chapters found.');
     lines.push('');
-    const text = lines.join('\n');
-    const existing = readIf(OUT_INDEX);
-    if (existing === null) {
-      writeFileSync(OUT_INDEX, text, 'utf8');
-      console.log(`wrote ${OUT_INDEX}`);
-    } else if (existing !== text) {
-      writeFileSync(OUT_INDEX, text, 'utf8');
-      console.log(`updated ${OUT_INDEX}`);
-    } else {
-      console.log(`index unchanged: ${OUT_INDEX}`);
-    }
-    return;
+    return lines.join('\n');
   }
   // Add TargetWords as a visible column so editors and tools can see each chapter's target range.
   lines.push('| # | Filename | Title | TargetWords | FocalCharacter | ContinuityNotes |');
@@ -90,7 +81,11 @@ function writeIndex(items) {
     lines.push(`| ${num} | ${file} | ${title} | ${target} | ${focal} | ${notes} |`);
   }
   lines.push('');
-  const text = lines.join('\n');
+  return lines.join('\n');
+}
+
+function writeIndex(items) {
+  const text = renderIndex(items);
   const existing = readIf(OUT_INDEX);
   if (existing === null) {
     writeFileSync(OUT_INDEX, text, 'utf8');
@@ -103,9 +98,8 @@ function writeIndex(items) {
   }
 }
 
-function writeJson(items) {
-  const outDir = dirname(OUT_JSON);
-  if (!existsSync(outDir)) mkdirSync(outDir, { recursive: true });
+// The exact text `npm run toc` writes to tools/validation/toc.json for these rows.
+export function renderJson(items) {
   const arr = items.map((it) => ({
     filename: it.filename,
     chapterNumber: it.chapterNumber,
@@ -114,7 +108,13 @@ function writeJson(items) {
     focalCharacter: it.focalCharacter,
     continuityNotes: it.continuityNotes,
   }));
-  const jsonText = JSON.stringify(arr, null, 2) + '\n';
+  return JSON.stringify(arr, null, 2) + '\n';
+}
+
+function writeJson(items) {
+  const outDir = dirname(OUT_JSON);
+  if (!existsSync(outDir)) mkdirSync(outDir, { recursive: true });
+  const jsonText = renderJson(items);
   const existing = readIf(OUT_JSON);
   if (existing === null) {
     writeFileSync(OUT_JSON, jsonText, 'utf8');
@@ -127,18 +127,14 @@ function writeJson(items) {
   }
 }
 
-function main() {
-  const text = readIf(CHAPTERS_DIR);
-  if (text === null && !existsSync(CHAPTERS_DIR)) {
-    console.error('chapters/ directory not found');
-    process.exit(1);
-  }
-  const files = readdirSync(CHAPTERS_DIR)
+// The TOC rows for every chapter file in dir, in chapter order.
+export function collectItems(dir) {
+  const files = readdirSync(dir)
     .filter((f) => f.toLowerCase().endsWith('.md') && !SKIP.has(f.toLowerCase()))
     .sort();
   const items = [];
   for (const file of files) {
-    const path = join(CHAPTERS_DIR, file);
+    const path = join(dir, file);
     const src = readIf(path);
     if (src === null) continue;
     const { fields } = parseHeader(src);
@@ -156,15 +152,29 @@ function main() {
     if (an !== bn) return an - bn;
     return a.filename.localeCompare(b.filename);
   });
+  return items;
+}
+
+function main() {
+  const text = readIf(CHAPTERS_DIR);
+  if (text === null && !existsSync(CHAPTERS_DIR)) {
+    console.error('chapters/ directory not found');
+    process.exit(1);
+  }
+  const items = collectItems(CHAPTERS_DIR);
 
   writeIndex(items);
   writeJson(items);
   console.log('build-toc: done');
 }
 
-if (process.argv.includes('--help') || process.argv.includes('-h')) {
-  console.log('build-toc.mjs — generate chapters/INDEX.md and tools/validation/toc.json');
-  process.exit(0);
-}
+// Run only as a script: tools/check-chapters.mjs imports the render functions above and
+// must not rewrite the index just by loading this module.
+if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  if (process.argv.includes('--help') || process.argv.includes('-h')) {
+    console.log('build-toc.mjs — generate chapters/INDEX.md and tools/validation/toc.json');
+    process.exit(0);
+  }
 
-main();
+  main();
+}
