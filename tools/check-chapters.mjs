@@ -196,7 +196,9 @@ function checkFile(dir, file, cast, slots, seenNumbers) {
   for (const [key, value] of Object.entries(fields)) {
     if (/\[[^\]]*\]/.test(value)) errors.push(`header field "${key}:" still holds a bracket placeholder: ${value}`);
   }
-  if (/^(protagonist name|chapter title|name)$/i.test(fields.FocalCharacter || "")) {
+  const focal = fields.FocalCharacter || "";
+  const focalIsPlaceholder = /\[[^\]]*\]/.test(focal) || /^(protagonist name|chapter title|name)$/i.test(focal);
+  if (/^(protagonist name|chapter title|name)$/i.test(focal)) {
     errors.push(`FocalCharacter is a placeholder ("${fields.FocalCharacter}"), not a cast name`);
   }
 
@@ -229,8 +231,8 @@ function checkFile(dir, file, cast, slots, seenNumbers) {
     }
   }
 
-  // 6. FocalCharacter must be a named cast member
-  if (fields.FocalCharacter && cast.names.length && !cast.names.includes(fields.FocalCharacter)) {
+  // 6. FocalCharacter must be a named cast member (a placeholder was already reported in 3)
+  if (fields.FocalCharacter && !focalIsPlaceholder && cast.names.length && !cast.names.includes(fields.FocalCharacter)) {
     errors.push(
       `FocalCharacter "${fields.FocalCharacter}" is not in the STYLE.md Cast (${cast.names.join(", ")})`
     );
