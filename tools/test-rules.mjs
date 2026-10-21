@@ -21,8 +21,9 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { readFileSync, writeFileSync, existsSync, rmSync } from "node:fs";
+import { readFileSync, writeFileSync, existsSync, rmSync, mkdtempSync, symlinkSync } from "node:fs";
 import { join, dirname, resolve } from "node:path";
+import { tmpdir } from "node:os";
 import { fileURLToPath } from "node:url";
 import {
   parseStyle,
@@ -112,6 +113,18 @@ test("narration blanks dialogue, italics, block quotes and comments but keeps li
   assert.match(out, /Narration again\./);
 });
 
+test("narration blanks italic thought that wraps onto the next line, but not past a blank line", () => {
+  // Chapters are hard-wrapped, so a thought often wraps. Unblanked, the wrapped span also
+  // threw the * pairing off, exposing the NEXT italic span as narration.
+  const src = "Mara keyed the mic. *I should have called\nit in,* she thought. *Whilst there was light.*\n_We were\nlate,_ she knew.";
+  assert.deepEqual(checkPov(src, "Mara Voss", STYLE), []);
+  assert.deepEqual(checkBanned(src, STYLE), []);
+  assert.deepEqual(checkBanned("Mara waited. *Not whilst\nDez is out there,* she thought.", STYLE), []);
+  const twoParagraphs = "Mara saw one *star.\n\nI waited whilst she counted. Then a second* one.";
+  assert.deepEqual(rules(checkPov(twoParagraphs, "Mara Voss", STYLE)), ["pov-first-person"]);
+  assert.deepEqual(rules(checkBanned(twoParagraphs, STYLE)), ["banned-phrase"]);
+});
+
 test("editDistance counts a transposition as one edit", () => {
   assert.equal(editDistance("Ridge", "Rigde"), 1);
   assert.equal(editDistance("Mara", "Marra"), 1);
@@ -140,6 +153,13 @@ test("checkNames flags near-misses, crossed names and wrong case", () => {
 test("checkNames leaves correct names, sentence starts, exceptions and other initials alone", () => {
   const f = checkNames("Mara Voss and Lena Voss met at Amity Cove. Calm water. Her friend Mary waved, and the Boss nodded. Mara's log was full.", STYLE);
   assert.deepEqual(f, []);
+});
+
+test("checkNames treats a word after a closing quote, bracket or ellipsis that ends a sentence as sentence-initial", () => {
+  const f = checkNames("“Say anything.”\n\nCave lights came on. She read the sign: ‘Closed.’ Mark the time. (It was late.) Cave water. She waited… Mark it.", STYLE);
+  assert.deepEqual(f, []);
+  // a closing quote with no full stop before it is still mid-sentence
+  assert.deepEqual(rules(checkNames("She called it the “harbor” Marra liked.", STYLE)), ["name-spelling"]);
 });
 
 test("checkNames reports line numbers in the file, offset past the header", () => {
@@ -320,6 +340,23 @@ test("a missing tools/validation/toc.json fails npm run check", () => {
     assert.equal(r.code, 1, r.out);
     assert.ok(r.errors.some((e) => /^ERROR toc: \[toc-drift\] tools\/validation\/toc\.json is missing/.test(e)), r.out);
   });
+});
+
+test("npm run toc runs when the checkout is reached through a symlink", () => {
+  const dir = mkdtempSync(join(tmpdir(), "novel-link-"));
+  const link = join(dir, "repo");
+  const before = [readFileSync(INDEX_MD, "utf8"), readFileSync(TOC_JSON, "utf8")];
+  try {
+    symlinkSync(REPO_ROOT, link, "dir");
+    const r = spawnSync(process.execPath, [join(link, "tools", "build-toc.mjs")], { cwd: dir, encoding: "utf8" });
+    assert.equal(r.status, 0, r.stderr);
+    assert.match(r.stdout, /build-toc: done/, `build-toc did nothing:\n${r.stdout}${r.stderr}`);
+  } finally {
+    writeFileSync(INDEX_MD, before[0], "utf8");
+    writeFileSync(TOC_JSON, before[1], "utf8");
+    rmSync(link, { force: true }); // the link itself, never the checkout it points at
+    rmSync(dir, { recursive: true, force: true });
+  }
 });
 
 test("a CRLF checkout of the index is not drift", () => {
